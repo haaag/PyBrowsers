@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+ENV_DIR=".venv/bin/activate"
+SCRIPT=$(readlink -m "$(type -p "${0}")")
+BASE_DIR=$(dirname "$SCRIPT")
+
+PY_SCRIPT="$BASE_DIR/main.py"
+
+activate() {
+	source "$BASE_DIR/$ENV_DIR"
+}
+
+activate
+
+if [[ $# -eq 0 ]]; then
+	python "$PY_SCRIPT" "--help"
+elif [[ $# -eq 1 ]]; then
+	python "$PY_SCRIPT" "$1"
+elif [[ $# -eq 2 ]]; then
+	python "$PY_SCRIPT" "$1" "$2"
+elif [[ $# -eq 3 ]]; then
+	python "$PY_SCRIPT" "$1" "$2" "$3"
+fi
