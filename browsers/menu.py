@@ -47,9 +47,9 @@ class DmenuMenu:
 
 class CurseMenu:
     def __init__(self) -> None:
-        pass
+        raise NotImplementedError()
 
 
 class GtkMenu:
     def __init__(self) -> None:
-        pass
+        raise NotImplementedError()
