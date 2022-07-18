@@ -42,7 +42,6 @@ class ConfigManager:
         SUB_LEVEL_KEY = "info_cache"
 
         if not os.path.isfile(self.profiles_file):
-            print(f"Profile's file '{self.profiles_file}' not found.")
             self.menu.error(f"'{self.name}' not found. ({self.profiles_file})")
 
         with open(self.profiles_file) as f:
@@ -57,7 +56,6 @@ class ConfigManager:
         """Process Gecko-type Browser profile file."""
 
         if not os.path.isfile(self.profiles_file):
-            print(f"Profile's file '{self.profiles_file}' not found.")
             self.menu.error(f"'{self.name}' not found. ({self.profiles_file})")
 
         profiles_file = ConfigParser()
