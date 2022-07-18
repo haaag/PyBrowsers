@@ -1,17 +1,9 @@
-import shlex
-import shutil
-import subprocess
-from typing import Optional, Protocol
+from typing import Protocol
 
-from configuration.configuration import BrowserConfig
+from configuration.configuration import ConfigManager
+from configuration.executor import Executor
 
-from .menu import Menu
-
-
-class BrowserExecutableNotFoundError(Exception):
-    def __init__(self, name: str):
-        self.message = f"Executable for '{name}' browser not found."
-        super().__init__(self.message)
+from browsers.menu import Menu
 
 
 class BrowserProfileNotFoundError(Exception):
@@ -21,10 +13,10 @@ class BrowserProfileNotFoundError(Exception):
 
 
 class Browser(Protocol):
-    config: BrowserConfig
+    config: ConfigManager
     menu: Menu
     profiles: dict[str, str]
-    bin: Optional[str]
+    executor: Executor
 
     def _load_profiles(self) -> None:
         raise NotImplementedError()
@@ -35,18 +27,15 @@ class Browser(Protocol):
     def launch_profile(self, profile: str) -> None:
         raise NotImplementedError()
 
-    def notification(self, message: str) -> None:
-        raise NotImplementedError()
-
 
 class GeckoBrowser:
-    def __init__(self, config: BrowserConfig, menu: Menu) -> None:
+    def __init__(self, config: ConfigManager, menu: Menu, executor: Executor) -> None:
         self.config = config
         self.menu = menu
+        self.executor = executor
         self.name: str = self.config.name
         self.command: str = self.config.command
         self.profiles: dict[str, str] = {}
-        self.bin = shutil.which(self.name)
 
         self._load_profiles()
 
@@ -58,46 +47,26 @@ class GeckoBrowser:
         selected = self.menu.show_items(items)
 
         if selected not in self.profiles and selected is not None:
-            self.notification(f"Profile: '{selected}' not found.")
+            self.executor.send_notification(f"Profile: '{selected}' not found.")
             raise BrowserProfileNotFoundError(selected)
 
         if selected:
             self.launch_profile(selected)
 
     def launch_profile(self, profile: str) -> None:
-        if not self.bin:
-            raise BrowserExecutableNotFoundError(self.name)
-
-        self.notification(f"Launching Profile: {profile}")
-
-        command_str = self.command.format(executable=self.bin, profile=profile)
-        subprocess.Popen(
-            shlex.split(command_str),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-
-    def notification(self, message: str) -> None:
-        if not self.config.notification:
-            return
-
-        notification_str = (
-            f"notify-send '{self.name.capitalize()} profiles script' '{message}'"
-        )
-        notification = shlex.split(notification_str)
-        subprocess.Popen(
-            notification, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
+        command = self.command.format(executable=self.executor.bin, profile=profile)
+        self.executor.run(command)
+        self.executor.send_notification(f"Launching Profile: {profile}")
 
 
 class ChromiumBrowser:
-    def __init__(self, config: BrowserConfig, menu: Menu) -> None:
+    def __init__(self, config: ConfigManager, menu: Menu, executor: Executor) -> None:
         self.config = config
         self.menu = menu
+        self.executor = executor
         self.name: str = self.config.name
-        self.command = self.config.command
+        self.command: str = self.config.command
         self.profiles: dict[str, str] = {}
-        self.bin = shutil.which(self.name)
 
         self._load_profiles()
 
@@ -109,37 +78,18 @@ class ChromiumBrowser:
         selected = self.menu.show_items(items)
 
         if selected not in self.profiles and selected is not None:
-            self.notification(f"Profile: {selected} not found.")
+            self.executor.send_notification(f"Profile: {selected} not found.")
             raise BrowserProfileNotFoundError(selected)
 
         if selected:
             self.launch_profile(self.profiles[selected])
 
     def launch_profile(self, profile: str) -> None:
-        if not self.bin:
-            raise BrowserExecutableNotFoundError(self.name)
-
         profile_name = self.get_profile_name(profile)
-        self.notification(f"Launching Profile: {profile_name}")
+        self.executor.send_notification(f"Launching Profile: {profile_name}")
 
-        command_str = self.command.format(executable=self.bin, profile=profile)
-        subprocess.Popen(
-            shlex.split(command_str),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-
-    def notification(self, message: str) -> None:
-        if not self.config.notification:
-            return
-
-        notification_str = (
-            f"notify-send '{self.name.capitalize()} profiles script' '{message}'"
-        )
-        notification = shlex.split(notification_str)
-        subprocess.Popen(
-            notification, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-        )
+        command_str = self.command.format(executable=self.executor.bin, profile=profile)
+        self.executor.run(command_str)
 
     def get_profile_name(self, profile_target: str) -> str | None:
         for name, profile_dir in self.profiles.items():
