@@ -8,11 +8,10 @@ config_path = os.path.dirname(os.path.abspath(__file__))
 CONFIGFILE = f"{config_path}/config.json"
 
 
-class BrowserConfig:
-    def __init__(self, config_name: str, menu: Menu, notification: bool) -> None:
+class ConfigManager:
+    def __init__(self, config_name: str, menu: Menu) -> None:
         self.config_name = config_name
         self.menu = menu
-        self.notification = notification
         self.config: dict[str, str] = {}
         self.profiles: dict[str, str] = {}
 
