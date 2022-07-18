@@ -3,7 +3,8 @@ from typing import Type
 
 from browsers.browser import Browser, ChromiumBrowser, GeckoBrowser
 from browsers.menu import DmenuMenu, Menu, RofiMenu
-from configuration.configuration import BrowserConfig
+from configuration.configuration import ConfigManager
+from configuration.executor import Executor
 
 BROWSERS: dict[str, Type[GeckoBrowser | ChromiumBrowser]] = {
     "ini": GeckoBrowser,
@@ -14,8 +15,8 @@ BROWSERS: dict[str, Type[GeckoBrowser | ChromiumBrowser]] = {
 @dataclass
 class BrowserFactory:
     name: str
+    executor: Executor
     rofi: bool = False
-    notification: bool = False
 
     @property
     def menu(self) -> Menu:
@@ -24,9 +25,9 @@ class BrowserFactory:
         return DmenuMenu()
 
     @property
-    def config(self) -> BrowserConfig:
-        return BrowserConfig(self.name, self.menu, self.notification)
+    def config(self) -> ConfigManager:
+        return ConfigManager(self.name, self.menu)
 
     @property
     def browser(self) -> Browser:
-        return BROWSERS[self.config.type](self.config, self.config.menu)
+        return BROWSERS[self.config.type](self.config, self.config.menu, self.executor)
