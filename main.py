@@ -2,6 +2,7 @@ import sys
 
 import click
 
+from configuration.executor import Executor
 from factory.factory import BrowserFactory
 
 SUPPORTED_BROWSERS = [
@@ -15,7 +16,7 @@ SUPPORTED_BROWSERS = [
 
 def show(factory: BrowserFactory) -> None:
     print("Name:\t\t", factory.name)
-    print("Executable:\t", factory.browser.bin)
+    print("Executable:\t", factory.browser.executor.bin)
     print("ProfileFile:\t", factory.config.profiles_file)
 
 
@@ -48,9 +49,9 @@ def main(
     """
     Simple script that launches browser with the selected profile.
     """
-
+    executor = Executor(browser_name, notification)
     if all:
-        factory = BrowserFactory(browser_name, rofi, notification)
+        factory = BrowserFactory(browser_name, executor, rofi)
         browser_selected = factory.menu.show_items(
             items=SUPPORTED_BROWSERS, prompt="browser > "
         )
@@ -66,7 +67,7 @@ def main(
         print("\nUse --help.\nPlease choose a browser.")
         sys.exit(1)
 
-    factory = BrowserFactory(browser_name, rofi, notification)
+    factory = BrowserFactory(browser_name, executor, rofi)
 
     if show_config:
         show(factory)
