@@ -1,8 +1,14 @@
 from dataclasses import dataclass
+from typing import Type
 
 from browsers.browser import Browser, ChromiumBrowser, GeckoBrowser
 from browsers.menu import DmenuMenu, Menu, RofiMenu
 from configuration.configuration import BrowserConfig
+
+BROWSERS: dict[str, Type[GeckoBrowser | ChromiumBrowser]] = {
+    "ini": GeckoBrowser,
+    "json": ChromiumBrowser,
+}
 
 
 @dataclass
@@ -15,8 +21,7 @@ class BrowserFactory:
     def menu(self) -> Menu:
         if self.rofi:
             return RofiMenu()
-        else:
-            return DmenuMenu()
+        return DmenuMenu()
 
     @property
     def config(self) -> BrowserConfig:
@@ -24,6 +29,4 @@ class BrowserFactory:
 
     @property
     def browser(self) -> Browser:
-        if self.config.type == "ini":
-            return GeckoBrowser(self.config, self.config.menu)
-        return ChromiumBrowser(self.config, self.config.menu)
+        return BROWSERS[self.config.type](self.config, self.config.menu)
