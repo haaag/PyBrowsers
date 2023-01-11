@@ -35,8 +35,6 @@ class Executor:
         if not self.notification:
             return None
 
-        notification_str = (
-            f"notify-send '{self.name.capitalize()} profiles script' '{message}'"
-        )
+        notification_str = (f"notify-send '{self.name.capitalize()} profiles script' '{message}'")
 
         self.run(notification_str)

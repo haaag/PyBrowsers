@@ -25,7 +25,7 @@ def show(factory: BrowserFactory) -> None:
     "--browser-name",
     "-b",
     type=click.Choice(SUPPORTED_BROWSERS),
-    help="Give a browser to launch.",
+    help="Browser to launch",
 )
 @click.option("--all", "-a", is_flag=True, help="Show supported browser and profiles.")
 @click.option(

@@ -38,7 +38,7 @@ class DmenuMenu:
 
     def show_items(self, items: list[str], prompt: str = "profiles > ") -> str:
         selected = self.menu.show(items, prompt=prompt)
-        return selected
+        return selected  # type: ignore
 
     def error(self, message: str) -> None:
         self.menu.show([message], prompt="Error > ")
