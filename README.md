@@ -1,22 +1,12 @@
 # Profile Launcher: A Python Script for Effortless Browser Profile Management
 
-<!--toc:start-->
-- [Profile Launcher: A Python Script for Effortless Browser Profile Management](#profile-launcher-a-python-script-for-effortless-browser-profile-management)
-    - [Installation](#installation)
-    - [Usage](#usage)
-      - [Use the `-b` or `--browser-name` option to specify the browser you want to launch](#use-the-b-or-browser-name-option-to-specify-the-browser-you-want-to-launch)
-      - [Use the `--rofi` option to specify the launcher you want to use](#use-the-rofi-option-to-specify-the-launcher-you-want-to-use)
-      - [Open all browsers found with Dmenu or Rofi with the argument `--all`](#open-all-browsers-found-with-dmenu-or-rofi-with-the-argument-all)
-    - [Browsers](#browsers)
-    - [Tools Dependencies](#tools-dependencies)
-    - [Python Dependencies](#python-dependencies)
-    - [config.json](#configjson)
-    - [TODO](#todo)
-<!--toc:end-->
+### About 
 
 This Python script allows you to quickly launch `browser profiles` without having to manually navigate through the browser's settings.
 It reads the profile information from each browser's config directory and presents them as options for launch.
 This can save you time and improve your workflow if you frequently switch between multiple profiles.
+
+The script currently supports all Chromium and Gecko-based browsers that use `XDG config` and `~/.mozilla` directories. If you need to add support for other browsers, you can do so by modifying the [config.json](#configjson) file accordingly.
 
 ### Installation
 
@@ -88,8 +78,6 @@ $ python main.py --all --rofi
 - Google Chrome
 - Brave
 - Waterfox Classic
-
-The script currently supports all Chromium and Gecko-based browsers that use `XDG config` and `~/.mozilla` directories. If you need to add support for other browsers, you can do so by modifying the [config.json](#configjson) file accordingly.
 
 ### Tools Dependencies
 
