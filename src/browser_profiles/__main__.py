@@ -3,9 +3,9 @@
 import argparse
 from typing import Sequence
 
-from src.browser_profiles import helpers
-from src.browser_profiles.browser import Browser
-from src.browser_profiles.browser import BrowsersFound
+from . import helpers
+from .browser import Browser
+from .browser import BrowsersFound
 
 
 def main(argv: Sequence[str] | None = None) -> None:
