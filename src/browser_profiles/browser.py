@@ -3,8 +3,8 @@
 import sys
 
 from . import helpers
+from .datatypes import BrowserSettings
 from .datatypes import ProfilesData
-from .datatypes import Settings
 from .menu import Dmenu
 from .menu import Menu
 from .menu import Rofi
@@ -32,7 +32,7 @@ class BrowsersFound:
 
 
 class Browser:
-    def __init__(self, settings: Settings, rofi: bool = False) -> None:
+    def __init__(self, settings: BrowserSettings, rofi: bool = False) -> None:
         self.settings = settings
         self.rofi = rofi
         self._profiles: ProfilesData = {}

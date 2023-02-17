@@ -25,15 +25,15 @@ $ source .venv/bin/activate
 ### 🚀 Usage
 
 ```bash
-usage: Simple script that launches browser with the selected profile. 
-[-h] [-b BROWSER] [-v] [-r] [-a]
+usage: Simple script that launches browser with the selected profile. [-h] [-b BROWSER] [-v] [-r] [-f] [-t]
 
 options:
   -h, --help            show this help message and exit
-  -b, --browser         Browser to launch (default: firefox)
+  -b BROWSER, --browser BROWSER
+                        Browser to launch (default: firefox)
   -r, --rofi            Use Rofi (default: dmenu)
-  -a, --all             Select from browsers found in your system.
-  -v, --verbose         Set logger to DEBUG
+  -f, --found           Select from browsers found in your system.
+  -v, --verbose
 ```
 
 #### > Use the `-b` or `--browser` option to specify the browser you want to launch
@@ -75,23 +75,25 @@ You can add a new configuration by modifying the `src/database.py` file accordin
 #### Example
 
 ```python
-"google-chrome-unstable": {
-    "name": "google-chrome-unstable",
+"ungoogled-chromium": {
+    "name": "ungoogled-chromium",
+    "command": "ungoogled-chromium",
     "profile_command": "--profile-directory='{profile}' --no-default-browser-check",
-    "profile_file": "~/.config/google-chrome-unstable/Local State",
+    "profile_file": "~/.config/chromium/Local State",
     "incognito": "--incognito",
     "type": JSON,
-},
+}
 ```
 
 ### 🌐 Browsers
 
-- Firefox
-- Chromium
-- Google Chrome
-- Google Chrome Beta
+- [Firefox](https://www.mozilla.org/firefox/download/thanks/)
+- [LibreWolf](https://librewolf.net/)
+- [Ungoogled Chromium](https://github.com/ungoogled-software/ungoogled-chromium)
+- [Chromium](https://www.chromium.org/getting-involved/download-chromium/)
 - Brave
-- Waterfox Classic
+- Google Chrome
+- [Waterfox Classic](https://www.waterfox.net/download/)
 
 ### ⚡️ Requirements
 

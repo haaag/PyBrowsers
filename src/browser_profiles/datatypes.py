@@ -27,7 +27,7 @@ class BrowserNotSupportedError(Exception):
     pass
 
 
-class SettingsType(Protocol):
+class BrowserSettingsType(Protocol):
     @staticmethod
     def read(file: Path) -> ProfilesData:
         ...
@@ -36,7 +36,6 @@ class SettingsType(Protocol):
 class INI:
     @staticmethod
     def read(file: Path) -> ProfilesData:
-
         if not file.exists():
             raise BrowserProfileNotFoundError(f"profile path '{file}' not found.")
 
@@ -51,11 +50,14 @@ class INI:
 
         return profiles
 
+    @staticmethod
+    def name() -> str:
+        return "ini"
+
 
 class JSON:
     @staticmethod
     def read(file: Path) -> ProfilesData:
-
         if not file.exists():
             raise BrowserProfileNotFoundError(f"profile path '{file}' not found.")
 
@@ -72,9 +74,14 @@ class JSON:
 
         return profiles
 
+    @staticmethod
+    def name() -> str:
+        return "json"
+
 
 @dataclass
-class Settings:
+class BrowserSettings:
+    name: str
     command: str
     profile_command: str
     incognito: str

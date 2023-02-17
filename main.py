@@ -13,7 +13,8 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser.add_argument("-b", "--browser", help="Browser to launch (default: firefox)", default="firefox")
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("-r", "--rofi", help="Use Rofi (default: dmenu)", action="store_true")
-    parser.add_argument("-a", "--all", help="Select from browsers found in your system.", action="store_true")
+    parser.add_argument("-f", "--found", help="Select from browsers found in your system.", action="store_true")
+    parser.add_argument("-t", "--test", help="test", action="store_true")
 
     args = parser.parse_args(argv)
 
@@ -23,13 +24,13 @@ def main(argv: Sequence[str] | None = None) -> None:
         print("Arguments:", end=" ")
         __import__("pprint").pprint(vars(args))
 
-    if args.all:
+    if args.found:
         name = BrowsersFound(rofi=args.rofi).choose_browser()
     else:
         name = args.browser
 
-    config = helpers.get_browser_config(name)
-    browser = Browser(settings=config, rofi=args.rofi)
+    settings = helpers.get_browser_config(name)
+    browser = Browser(settings=settings, rofi=args.rofi)
     browser.load_profiles()
     browser.add_profile("Incognito")
     browser.select_profile()
