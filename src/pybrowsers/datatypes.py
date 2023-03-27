@@ -15,7 +15,7 @@ BrowserCollection = Mapping[str, dict[str, Any]]
 ProfilesData = MutableMapping[str, str]
 
 
-class ExecutableNotFound(Exception):
+class ExecutableNotFoundError(Exception):
     pass
 
 
@@ -30,6 +30,10 @@ class BrowserNotSupportedError(Exception):
 class BrowserSettingsType(Protocol):
     @staticmethod
     def read(file: Path) -> ProfilesData:
+        ...
+
+    @staticmethod
+    def name() -> str:
         ...
 
 
@@ -61,13 +65,13 @@ class JSON:
         if not file.exists():
             raise BrowserProfileNotFoundError(f"profile path '{file}' not found.")
 
-        TOP_LEVEL_KEY = "profile"
-        SUB_LEVEL_KEY = "info_cache"
+        top_level_key = "profile"
+        low_level_key = "info_cache"
         profiles = {}
 
-        with open(file, encoding="utf-8", mode="r") as f:
+        with Path.open(file, encoding="utf-8", mode="r") as f:
             json_dump = json.load(f)
-            profiles_dict = json_dump.get(TOP_LEVEL_KEY).get(SUB_LEVEL_KEY)
+            profiles_dict = json_dump.get(top_level_key).get(low_level_key)
 
             for path, data in profiles_dict.items():
                 profiles[data.get("name")] = path
@@ -90,11 +94,11 @@ class BrowserSettings:
 
     def __post_init__(self) -> None:
         if not shutil.which(self.command):
-            raise ExecutableNotFound(f"command '{self.command}' not found.")
+            raise ExecutableNotFoundError(f"command '{self.command}' not found.")
 
     @property
     def bin(self) -> str:
-        return shutil.which(self.command)  # type: ignore
+        return shutil.which(self.command)
 
     @property
     def path(self) -> Path:

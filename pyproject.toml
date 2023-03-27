@@ -1,30 +1,48 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
-build-backend = "setuptools.build_meta"
+build-backend = "hatchling.build"
+requires = [
+  "hatchling",
+]
 
 [project]
-name = "browser-profiles"
-version = "0.1.0"
+name = "pybrowsers"
 description = "Simple script that launches browser with the selected profile."
 readme = "README.md"
-requires-python = ">=3.8"
-keywords = ["dmenu", "rofi", "firefox", "profiles"]
-classifiers = [
-  "Programming Language :: Python :: 3",
-  "License :: OSI Approved :: MIT License",
-  "Operating System :: Unix/macOS",
+keywords = [
+  "dmenu",
+  "firefox",
+  "profiles",
+  "rofi",
 ]
+license = "MIT"
 authors = [
-  { name="haaag", email="haag_@tutanota.com" },
+  { name = "haaag", email = "git.haaag@gmail.com" },
 ]
-dependencies = []
-
-[project.scripts]
-browser-profiles = "browser_profiles.__main__:main"
-
+requires-python = ">=3.8"
+dynamic = [
+  "version",
+]
+dependencies = [
+  "pyselector",
+]
 [project.urls]
-"Homepage" = "https://github.com/haaag/quick-profile-launcher"
 "Bug Tracker" = "https://github.com/haaag/quick-profile-launcher/issues"
+"Homepage" = "https://github.com/haaag/quick-profile-launcher"
+[project.scripts]
+pybrowsers = "pybrowsers.__main__:main"
+
+[tool.hatch.version]
+path = "src/pybrowsers/__about__.py"
+
+[tool.hatch.envs.default]
+dependencies = [
+  "pytest",
+  "pytest-cov",
+]
+[tool.hatch.envs.default.scripts]
+cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=pymarks --cov=tests {args} && coverage html"
+cov-html = "coverage html"
+no-cov = "cov --no-cov {args}"
 
 [tool.black]
 line-length = 120
@@ -33,6 +51,22 @@ line-length = 120
 profile = "black"
 line_length = 120
 force_single_line = true
+
+[tool.flake8]
+max-line-length = 120
+max-complexity = 10
+ignore = ["W503"]
+
+[tool.pytest.ini_options]
+pythonpath = "src"
+testpaths = ["tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
 
 [tool.mypy]
 show_error_codes = true
@@ -46,21 +80,6 @@ disallow_untyped_defs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 
-[tool.pylint]
-max-line-length = 120
-disable = [
-    "C0103", # (invalid-name)
-    "C0114", # (missing-module-docstring)
-    "C0115", # (missing-class-docstring)
-    "C0116", # (missing-function-docstring)
-    "E0401", # (import-error)
-    "R0903", # (too-few-public-methods)
-    "R0913", # (too-many-arguments)
-    "W0105", # (pointless-string-statement)
-    "R0902", # (too-many-instance-attributes)
-    "W0511", # (fixme)
-]
-
 [tool.pycodestyle]
 line-length = 120
 count = false
@@ -71,15 +90,48 @@ ignore = [
 ]
 statistics = true
 
-[tool.flake8]
-max-line-length = 120
-max-complexity = 10
-ignore = ["W503"]
-
 [tool.ruff]
+fix = false
 line-length = 120
+task-tags = ["HACK", "FIX", "BUG", "WIP", "TODO",]
+show-source = true
+show-fixes = true
+target-version = "py38"
+exclude = [
+    ".venv",
+    ".mypy_cache",
+    ".pytest_cache",
+]
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+extend-select = [
+    "B",    # (flake8-bugbear)
+    "BLE",  # (flake8-blind-except)
+    "C4",   # (flake8-comprehensions)
+    "ERA",  # (eradicate)
+    "I",    # (isort)
+    "ICN",  # (flake8-import-conventions)
+    "INP",  # (flake8-no-pep420)
+    "ISC",  # (flake8-implicit-str-concat)
+    "N",    # (pep8-naming)
+    "NPY",  # (numpy-specific-rules)
+    "PGH",  # (pygrep-hooks)
+    "PIE",  # (flake8-pie)
+    "PTH",  # (flake8-use-pathlib)
+    "Q",    # (flake8-quotes)
+    "RET",  # (flake8-return)
+    "RSE",  # (flake8-raise)
+    "RUF",  # (ruff-specific-rules)
+    "S",    # (flake8-bandit)
+    "SIM",  # (flake8-simplify)
+    "T20",  # (flake8-print)
+    "TCH",  # (flake8-type-checking)
+    "TID",  # (flake8-tidy-imports)
+    "YTT",  # (flake8-2020)
+]
 typing-modules = ["src.datatypes"]
 
 [tool.ruff.isort]
 force-single-line = true
 order-by-type = true
+required-imports = ["from __future__ import annotations"]
