@@ -1,3 +1,6 @@
+![Python](https://img.shields.io/badge/python-3670A0?style=Flat&logo=python&logoColor=ffdd54)
+[![Hatch project](https://img.shields.io/badge/%F0%9F%A5%9A-Hatch-4051b5.svg)](https://github.com/pypa/hatch)
+
 # Profile Launcher: A Python Script for Effortless Browser Profile Management
 
 ### ⭐ About 
@@ -8,29 +11,42 @@ This can save you time and improve your workflow if you frequently switch betwee
 
 The script currently supports all Chromium and Gecko-based browsers that use `XDG config` and `~/.mozilla` directories. 
 
-If you need to add support for other browsers, please refer to [Add browser](#add-browser) 
 
 ### 📦 Installation
 
+#### > Using `pipx` _(recommended)_
+
+~~~bash
+$ pipx install pybrowsers-profiles
+~~~
+
+> [pipx Homepage](https://github.com/pypa/pipx)
+
+#### > Using `pip` install
+
 ```bash
 # Just clone repository
-$ git clone "https://github.com/haaag/browser-profiles-launcher"
-$ cd browser-profiles-launcher
+$ git clone "https://github.com/haaag/PyBrowsers-Profiles"
+$ cd PyBrowsers-Profiles
 
 # Create virtual environment & source
 $ python -m venv .venv
 $ source .venv/bin/activate
+$ pip install .
 ```
 
 ### 🚀 Usage
 
 ```bash
-usage: Simple script that launches browser with the selected profile. [-h] [-b BROWSER] [-v] [-r] [-f] [-t]
+$ pybrowsers --help
+
+[-h] [-b BROWSER] [-v] [-r] [-f] [-t]
+
+usage: Simple script that launches browser with the selected profile. 
 
 options:
   -h, --help            show this help message and exit
-  -b BROWSER, --browser BROWSER
-                        Browser to launch (default: firefox)
+  -b, --browser         Browser to launch (default: firefox)
   -r, --rofi            Use Rofi (default: dmenu)
   -f, --found           Select from browsers found in your system.
   -v, --verbose
@@ -40,9 +56,9 @@ options:
 
 ```bash
 # Open menu with profiles list on Dmenu (This script defaults to Dmenu as Menu)
-$ (.venv) python main.py -b firefox
+$ (.venv) pybrowsers -b firefox
 # or
-$ (.venv) python main.py --browser firefox
+$ (.venv) pybrowsers --browser firefox
 ```
 
 <br>
@@ -52,20 +68,20 @@ $ (.venv) python main.py --browser firefox
 #### > Use the `-r` or `--rofi` option to specify the launcher you want to use
 
 ```bash
-$ (.venv) python main.py -b firefox --rofi
+$ (.venv) pybrowsers -b firefox --rofi
 ```
 
 <img align="center" width="314" height="423" src="https://github.com/haaag/profiles-browser-python/blob/main/.img/firefox-rofi.png?raw=true">
 <br>
 
-#### > Open all browsers found with Dmenu or Rofi with the argument `--all`
+#### > Open all browsers found with Dmenu or Rofi with the argument `--found`
 
 ```bash
 # Dmenu
-$ (.venv) python main.py --all
+$ (.venv) pybrowsers --found
 
 # Rofi
-$ (.venv) python main.py --all --rofi
+$ (.venv) pybrowsers --found --rofi
 ```
 
 ### ➕ Add Browser
@@ -108,4 +124,3 @@ You can add a new configuration by modifying the `src/database.py` file accordin
     - Use `sqlite3`?
 - [ ] Find a better way to get `Menu` object (maybe factory mode)
 - [X] Please, use `pathlib.Path`
-- [X] **Remove** python **dependencies**

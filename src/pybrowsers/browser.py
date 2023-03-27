@@ -1,15 +1,20 @@
 # browser.py
 
+from __future__ import annotations
+
 import sys
+import typing
 
 from . import helpers
-from .datatypes import BrowserSettings
-from .datatypes import ProfilesData
 from .menu import Dmenu
 from .menu import Menu
 from .menu import Rofi
 
-logger = helpers.get_logger(__name__)
+if typing.TYPE_CHECKING:
+    from .datatypes import BrowserSettings
+    from .datatypes import ProfilesData
+
+log = helpers.get_logger(__name__)
 
 
 def get_menu(rofi: bool = False) -> Menu:
@@ -27,7 +32,7 @@ class BrowsersFound:
         return get_menu(self.rofi)
 
     def choose_browser(self) -> str:
-        items = helpers.browsers_found(logger)
+        items = helpers.browsers_found()
         return self.menu.show(items, prompt="browsers >")
 
 
@@ -59,11 +64,11 @@ class Browser:
 
     def load_profiles(self) -> None:
         profiles = self._read_settings()
-        logger.debug("Set profiles: %s", profiles)
+        log.debug("Set profiles: %s", profiles)
         self.profiles = profiles
 
     def add_profile(self, new_profile: str) -> None:
-        logger.debug("Adding profile: '%s'", new_profile)
+        log.debug("Adding profile: '%s'", new_profile)
         self._profiles[new_profile] = new_profile
 
     def select_profile(self) -> None:
@@ -75,7 +80,7 @@ class Browser:
         return self.menu.show(items=items, prompt=f"{self.name} >")
 
     def incognito(self) -> None:
-        logger.debug("Open '%s' in Incognito mode.", self.name)
+        log.debug("Open '%s' in Incognito mode.", self.name)
         self.menu.executor.run(self.bin, self.settings.incognito)
 
     def open_profile(self, profile: str) -> None:
@@ -83,10 +88,13 @@ class Browser:
             self.incognito()
             sys.exit(0)
 
-        logger.debug("Opening profile: '%s'", profile)
+        if profile not in self.profiles:
+            log.error("profile '%s' not found.", profile)
+            raise ValueError(f"profile '{profile}' not found.")
+        log.debug("opening profile: '%s'", profile)
         command = self.settings.profile_command.format(profile=profile)
         self.menu.executor.run(self.bin, command)
 
     def _read_settings(self) -> ProfilesData:
-        logger.debug("Reading settings file: %s", self.settings.path)
+        log.debug("Reading settings file: %s", self.settings.path)
         return self.settings.type.read(self.settings.path)

@@ -1,6 +1,7 @@
 # datatypes.py
 
 import json
+import logging
 import shutil
 from configparser import ConfigParser
 from dataclasses import dataclass
@@ -9,6 +10,8 @@ from typing import Any
 from typing import Mapping
 from typing import MutableMapping
 from typing import Protocol
+
+log = logging.getLogger(__name__)
 
 BrowserCollection = Mapping[str, dict[str, Any]]
 
@@ -41,6 +44,7 @@ class INI:
     @staticmethod
     def read(file: Path) -> ProfilesData:
         if not file.exists():
+            log.error("profile path '%s' not found.", file)
             raise BrowserProfileNotFoundError(f"profile path '{file}' not found.")
 
         parser = ConfigParser()
@@ -63,6 +67,7 @@ class JSON:
     @staticmethod
     def read(file: Path) -> ProfilesData:
         if not file.exists():
+            log.error("profile path '%s' not found.", file)
             raise BrowserProfileNotFoundError(f"profile path '{file}' not found.")
 
         top_level_key = "profile"
@@ -94,6 +99,7 @@ class BrowserSettings:
 
     def __post_init__(self) -> None:
         if not shutil.which(self.command):
+            log.critical("command '%s' not found", self.command)
             raise ExecutableNotFoundError(f"command '{self.command}' not found.")
 
     @property

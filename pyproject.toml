@@ -5,7 +5,7 @@ requires = [
 ]
 
 [project]
-name = "pybrowsers"
+name = "pybrowsers-profiles"
 description = "Simple script that launches browser with the selected profile."
 readme = "README.md"
 keywords = [
@@ -29,10 +29,15 @@ dependencies = [
 "Bug Tracker" = "https://github.com/haaag/quick-profile-launcher/issues"
 "Homepage" = "https://github.com/haaag/quick-profile-launcher"
 [project.scripts]
-pybrowsers = "pybrowsers.__main__:main"
+pybrowsers = "src.pybrowsers.__main__:main"
 
 [tool.hatch.version]
 path = "src/pybrowsers/__about__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src",
+]
 
 [tool.hatch.envs.default]
 dependencies = [

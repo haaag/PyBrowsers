@@ -8,7 +8,7 @@ from typing import Protocol
 
 from . import helpers
 
-logger = helpers.get_logger(__name__)
+log = helpers.get_logger(__name__)
 
 # TODO:
 # [ ] find a better way to get Menu object (factory mode)
@@ -19,13 +19,13 @@ class Executor:
         """Run the command with the specified executable."""
         try:
             args_splitted = shlex.split(f"{command} {args}")
-            logger.debug("Running command: '%s'", args_splitted)
+            log.debug("running command: '%s'", args_splitted)
             return subprocess.Popen(
                 args_splitted, stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE
             )
 
         except subprocess.CalledProcessError as e:
-            logger.exception(e)
+            log.exception(e)
             return None
 
     def execute(self, command: str, args: str, items: list[str]) -> Optional[str]:

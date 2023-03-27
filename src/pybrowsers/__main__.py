@@ -1,11 +1,14 @@
 # main.py
 
 import argparse
+import logging
 from typing import Sequence
 
 from . import helpers
 from .browser import Browser
 from .browser import BrowsersFound
+
+log = logging.getLogger(__name__)
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -17,11 +20,8 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     args = parser.parse_args(argv)
 
-    helpers.set_logging_level(args.verbose)
-
-    if args.verbose:
-        print("Arguments:", end=" ")
-        __import__("pprint").pprint(vars(args))
+    helpers.logging_debug(args.verbose)
+    log.debug("arguments: %s", vars(args))
 
     name = BrowsersFound(rofi=args.rofi).choose_browser() if args.found else args.browser
     config = helpers.get_browser_config(name)
