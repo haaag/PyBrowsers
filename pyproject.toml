@@ -23,7 +23,13 @@ dynamic = [
   "version",
 ]
 dependencies = [
-  "pyselector",
+  "pyselector>=0.0.7b0",
+]
+[project.optional-dependencies]
+dev = [
+  "black==23.1",
+  "mypy==1.1.1",
+  "ruff==0.0.259",
 ]
 [project.urls]
 "Bug Tracker" = "https://github.com/haaag/quick-profile-launcher/issues"
@@ -41,26 +47,20 @@ include = [
 
 [tool.hatch.envs.default]
 dependencies = [
-  "pytest",
-  "pytest-cov",
+  "pyselector>=0.0.7b0",
 ]
-[tool.hatch.envs.default.scripts]
+[tool.hatch.envs.test]
+dependencies = [
+  "pytest==7.2.2",
+  "pytest-cov==4.0.0",
+]
+[tool.hatch.envs.test.scripts]
 cov = "pytest --cov-report=term-missing --cov-config=pyproject.toml --cov=pymarks --cov=tests {args} && coverage html"
 cov-html = "coverage html"
 no-cov = "cov --no-cov {args}"
 
 [tool.black]
 line-length = 120
-
-[tool.isort]
-profile = "black"
-line_length = 120
-force_single_line = true
-
-[tool.flake8]
-max-line-length = 120
-max-complexity = 10
-ignore = ["W503"]
 
 [tool.pytest.ini_options]
 pythonpath = "src"
@@ -84,16 +84,6 @@ disallow_incomplete_defs = true
 disallow_untyped_defs = true
 warn_redundant_casts = true
 warn_unused_ignores = true
-
-[tool.pycodestyle]
-line-length = 120
-count = false
-ignore = [
-    "E226",
-    "E302",
-    "E71",
-]
-statistics = true
 
 [tool.ruff]
 fix = false

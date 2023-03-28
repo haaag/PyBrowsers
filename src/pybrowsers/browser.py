@@ -6,41 +6,38 @@ import sys
 import typing
 
 from . import helpers
-from .menu import Dmenu
-from .menu import Menu
-from .menu import Rofi
+from .menu import Executor
+from .menu import get_menu
 
 if typing.TYPE_CHECKING:
+    from pyselector import Menu
+
     from .datatypes import BrowserSettings
     from .datatypes import ProfilesData
 
 log = helpers.get_logger(__name__)
 
 
-def get_menu(rofi: bool = False) -> Menu:
-    if rofi:
-        return Rofi()
-    return Dmenu()
-
-
 class BrowsersFound:
-    def __init__(self, rofi: bool = False) -> None:
-        self.rofi = rofi
+    def __init__(self, menu: str) -> None:
+        self._menu = menu
 
     @property
     def menu(self) -> Menu:
-        return get_menu(self.rofi)
+        return get_menu(self._menu)
 
     def choose_browser(self) -> str:
         items = helpers.browsers_found()
-        return self.menu.show(items, prompt="browsers >")
+        selected, _ = self.menu.prompt(items, prompt="browsers >")
+        return selected
 
 
 class Browser:
-    def __init__(self, settings: BrowserSettings, rofi: bool = False) -> None:
+    def __init__(self, settings: BrowserSettings, menu: str) -> None:
         self.settings = settings
-        self.rofi = rofi
+        self._menu = menu
         self._profiles: ProfilesData = {}
+        self.exe = Executor()
 
     @property
     def name(self) -> str:
@@ -52,7 +49,7 @@ class Browser:
 
     @property
     def menu(self) -> Menu:
-        return get_menu(self.rofi)
+        return get_menu(self._menu)
 
     @property
     def profiles(self) -> ProfilesData:
@@ -73,15 +70,15 @@ class Browser:
 
     def select_profile(self) -> None:
         profiles = list(self.profiles.values())
-        profile_selected = self.show_profiles(profiles)
+        profile_selected, _ = self.show_profiles(profiles)
         self.open_profile(profile_selected)
 
-    def show_profiles(self, items: list[str]) -> str:
-        return self.menu.show(items=items, prompt=f"{self.name} >")
+    def show_profiles(self, items: list[str]) -> tuple[str, int]:
+        return self.menu.prompt(items=items, prompt=f"{self.name} >")
 
     def incognito(self) -> None:
         log.debug("Open '%s' in Incognito mode.", self.name)
-        self.menu.executor.run(self.bin, self.settings.incognito)
+        self.exe.run(self.bin, self.settings.incognito)
 
     def open_profile(self, profile: str) -> None:
         if profile == "Incognito":
@@ -93,7 +90,7 @@ class Browser:
             raise ValueError(f"profile '{profile}' not found.")
         log.debug("opening profile: '%s'", profile)
         command = self.settings.profile_command.format(profile=profile)
-        self.menu.executor.run(self.bin, command)
+        self.exe.run(self.bin, command)
 
     def _read_settings(self) -> ProfilesData:
         log.debug("Reading settings file: %s", self.settings.path)

@@ -1,17 +1,16 @@
 # menu.py
 
+from __future__ import annotations
+
 import shlex
 import subprocess
-import sys
 from typing import Optional
-from typing import Protocol
+
+from pyselector import Menu
 
 from . import helpers
 
 log = helpers.get_logger(__name__)
-
-# TODO:
-# [ ] find a better way to get Menu object (factory mode)
 
 
 class Executor:
@@ -38,44 +37,10 @@ class Executor:
         return None
 
 
-class Menu(Protocol):
-    command: str
-    executor: Executor
-
-    def show(self, items: list[str], prompt: str) -> str:
-        ...
-
-
-class Rofi:
-    def __init__(self) -> None:
-        self.command = "rofi -dmenu"
-        self.executor = Executor()
-
-    def show(self, items: list[str], prompt: str) -> str:
-        commands = f"-i -l 10 -p '{prompt}'"
-        selected = self.executor.execute(self.command, commands, items)
-        if not selected:
-            sys.exit(1)
-        return selected.strip()
-
-
-class Dmenu:
-    def __init__(self) -> None:
-        self.command = "dmenu"
-        self.executor = Executor()
-
-    def show(self, items: list[str], prompt: str) -> str:
-        # commands = f"-i -l 12 -p '{prompt}'"
-        commands = f"-i -p '{prompt}'"
-        selected = self.executor.execute(self.command, commands, items)
-        if not selected:
-            sys.exit(1)
-        return selected.strip()
-
-
-class Pavel:
-    def __call__(self, executor: Executor, bin: str, commands: str, items: list[str]) -> str:
-        selected = executor.execute(bin, commands, items)
-        if not selected:
-            sys.exit(1)
-        return selected.strip()
+def get_menu(name: str):
+    menu = {
+        "rofi": Menu.rofi(),
+        "dmenu": Menu.dmenu(),
+        "fzf": Menu.fzf(),
+    }
+    return menu[name]
