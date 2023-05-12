@@ -74,7 +74,7 @@ class Browser:
         self.open_profile(profile_selected)
 
     def show_profiles(self, items: list[str]) -> tuple[str, int]:
-        return self.menu.prompt(items=items, prompt=f"{self.name} >")
+        return self.menu.prompt(items=items, case_sensitive=False, prompt=f"{self.name} >")
 
     def incognito(self) -> None:
         log.debug("Open '%s' in Incognito mode.", self.name)
