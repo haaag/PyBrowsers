@@ -1,0 +1,533 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import os
+import shlex
+import shutil
+import subprocess
+import sys
+import textwrap
+from configparser import ConfigParser
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import ClassVar
+from typing import NamedTuple
+
+from pyselector import Menu
+
+if TYPE_CHECKING:
+    from pyselector.interfaces import MenuInterface
+
+# TODO:
+# - [X] Prioritize json files
+# - [X] Drop class UserProfile
+# - [X] Add color class
+# - [ ] Output to --json or --plain-text (maybe)
+
+
+# XDG
+DEFAULT_DATA_HOME = Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local/share'))
+DEFAULT_APP_HOME = DEFAULT_DATA_HOME / 'pybrowsers'
+
+# Data
+BROWSERS: dict[str, Browser] = {}
+
+# App
+APP_NAME = 'PyBrowsers'
+__version__ = "0.0.5"
+PROGRAM = Path(__file__).name
+APP_HELP = textwrap.dedent(
+    f"""    usage: pybrowsers [-l] [-d DISABLE] [-e ENABLE] [-f] [-i INFO] 
+                      [-m {{menu}}] [-v] [-V] [browser]
+
+    Simple script for manage browser's profiles
+
+    options:
+        browser                     Browser name
+        -e, --enable                Enable browser
+        -d, --disable               Disable browser
+        -f, --found                 Browsers found
+        -l, --list                  Browser list and status
+        -i, --info                  Browser data
+        -m, --menu                  Select menu (default: dmenu)
+        -V, --version               Show version
+        -h, --help                  Show help
+        -v, --verbose               Verbose mode
+
+    supported menus:
+        {list(Menu.registered().keys())}
+    """
+)
+
+
+class C:
+    COLORS: ClassVar = {
+        'BOLD_RED': '\033[31;1;6m',
+        'RED': '\033[31m',
+        'BLUE': '\033[34m',
+        'YELLOW': '\033[33m',
+        'CYAN': '\033[36m',
+        'GREEN': '\033[32m',
+        'GREY': '\033[90m',
+        'RESET': '\033[0m',
+    }
+
+    @staticmethod
+    def color(color: str, text: str) -> str:
+        return f'{C.COLORS.get(color)}{text}{C.COLORS.get("RESET")}'
+
+
+# Logger Config
+FMT = "[{levelname:^7}] {name:<30}: {message} (line:{lineno})"
+FORMATS = {
+    logging.DEBUG: C.color('GREY', FMT),
+    logging.INFO: C.color('CYAN', FMT),
+    logging.WARNING: C.color('YELLOW', FMT),
+    logging.ERROR: C.color('RED', FMT),
+    logging.CRITICAL: C.color('BOLD_RED', FMT),
+}
+
+
+class CustomFormatter(logging.Formatter):
+    def format(self, record):  # type: ignore[no-untyped-def]
+        log_fmt = FORMATS[record.levelno]
+        formatter = logging.Formatter(log_fmt, style="{")
+        return formatter.format(record)
+
+
+handler = logging.StreamHandler()
+handler.setFormatter(CustomFormatter())
+logger = logging.getLogger(__name__)
+
+
+class BrowserProfile(NamedTuple):
+    name: str
+    key: str
+
+
+def browser_get(name: str) -> Browser:
+    name = name.lower()
+    try:
+        browser = BROWSERS[name]
+    except KeyError:
+        raise ValueError(f'{name=} not found') from None
+    return browser
+
+
+def browser_all_found(browsers: dict[str, Browser]) -> dict[str, Browser]:
+    return {b.name: b for b in browsers.values() if shutil.which(b.command)}
+
+
+def browser_select(menu: MenuInterface, browsers: dict[str, Browser]) -> Browser:
+    selected, _ = menu.prompt(items=browsers, prompt=f'{APP_NAME}> ')
+    return browser_get(selected)
+
+
+def browser_register(browser: Browser) -> None:
+    name = browser.name.lower()
+    if name in BROWSERS:
+        return
+    BROWSERS[name] = browser
+
+
+def browser_update(browser: Browser) -> None:
+    name = browser.name.lower()
+    if name not in BROWSERS:
+        raise ValueError(f'browser={name} not found.')
+    BROWSERS[name] = browser
+
+
+def browser_save_to_json(browser: Browser) -> None:
+    file = DEFAULT_APP_HOME / f'{browser.name.lower()}.json'
+    with file.open(mode='w') as f:
+        f.write(browser.to_json())
+    return
+
+
+def browser_create(data: dict[str, Any]) -> Browser:
+    return Browser(**data)
+
+
+def browser_disable(name: str) -> None:
+    browser = browser_get(name)
+    browser.enabled = False
+    logger.info(f'browser={browser.name} disabled')
+    browser_save_to_json(browser)
+
+
+def browser_enable(name: str) -> None:
+    browser = browser_get(name)
+    browser.enabled = True
+    logger.info(f'browser={browser.name} enabled')
+    browser_save_to_json(browser)
+
+
+def browsers_status() -> list[str]:
+    info = [browser_info(b) for b in BROWSERS.values()]
+    return format_title(C.color('GREEN', text='BROWSERS STATUS'), info)
+
+
+def browser_info(browser: Browser) -> str:
+    name = C.color('BLUE', text=browser.name)
+    status = '(enabled)'
+    if not browser.enabled:
+        name = C.color('YELLOW', text=browser.name)
+        status = '(disabled)'
+    if shutil.which(browser.command) is None:
+        name = C.color('RED', text=browser.name)
+        status = '(not found)'
+    return format_bullet_line(name, status)
+
+
+def browser_load_from_json() -> None:
+    files = DEFAULT_APP_HOME.glob('*.json')
+    for file in files:
+        data = load_json_file(file)
+        browser = browser_create(data)
+        browser_update(browser)
+
+
+def profile_select(menu: MenuInterface, browser: Browser) -> BrowserProfile:
+    selected, _ = menu.prompt(items=browser.profiles, prompt=f'{browser.name}> ')
+    return browser.get_profile(selected)
+
+
+def profiles_read_json(filepath: Path) -> dict[str, BrowserProfile]:
+    """
+    "profile": {
+        "info_cache": {
+            "Profile 1": {...},
+            "Profile 2": {...},
+            ...
+        }
+    }
+    """
+    assert_file(filepath)
+    profiles: dict[str, BrowserProfile] = {}
+    parent_container_name = 'profile'
+    child_container_name = 'info_cache'
+
+    data = load_json_file(filepath)
+
+    try:
+        parent_container = data[parent_container_name]
+        child_container: dict[str, Any] = parent_container[child_container_name]
+    except KeyError as err:
+        raise ValueError(err) from err
+    for key, profile in child_container.items():
+        name = profile.get('name')
+        profiles[name] = BrowserProfile(name=name, key=key)
+    return profiles
+
+
+def profiles_read_ini(filepath: Path) -> dict[str, BrowserProfile]:
+    assert_file(filepath)
+    profiles: dict[str, BrowserProfile] = {}
+
+    logger.debug(f"filepath from 'read_ini_profiles'={filepath}")
+    parser = load_ini_file(filepath)
+
+    for section in parser.sections():
+        if 'Profile' not in section:
+            continue
+
+        name = parser.get(section, 'Name')
+
+        profiles[name] = BrowserProfile(name=name, key=name)
+
+    return profiles
+
+
+def load_json_file(filepath: Path) -> dict[str, Any]:
+    try:
+        logger.debug(f'Reading file={filepath.name!r}')
+        with filepath.open(encoding='utf-8', mode='r') as file:
+            data = json.load(file)
+    except FileNotFoundError:
+        err_msg = f'Json file {filepath.name!r} not found'
+        logger.error(err_msg)
+        raise FileNotFoundError(err_msg) from None
+    return data
+
+
+def load_ini_file(filepath: Path) -> ConfigParser:
+    if not filepath.exists():
+        err_msg = f'INI file path {filepath.name!r} not found.'
+        logger.error(err_msg)
+        raise ValueError(err_msg)
+
+    parser = ConfigParser()
+    parser.read(filepath)
+    return parser
+
+
+def assert_file(file: Path) -> None:
+    err_msg = f'file={file!s} is not a file.'
+    try:
+        if file.is_dir():
+            logger.error(err_msg)
+            raise IsADirectoryError(err_msg)
+        if not file.exists():
+            err_msg = f'file={file!s} not found'
+            logger.error(err_msg)
+            raise FileNotFoundError(err_msg)
+    except (FileNotFoundError, IsADirectoryError) as err:
+        raise err
+
+
+def execute_command(commands: str) -> int:
+    try:
+        logger.debug(f'Executing={commands!r}')
+        args = shlex.split(commands)
+
+        completed_process = subprocess.run(
+            args,
+            stdout=subprocess.PIPE,
+            stdin=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            shell=False,
+        )
+        return completed_process.returncode
+    except subprocess.SubprocessError as e:
+        logging.exception(e)
+        raise e
+
+
+@dataclass
+class Manager:
+    @staticmethod
+    def incognito_flag() -> str:
+        raise NotImplementedError
+
+    @staticmethod
+    def open_flag(program: str, profile: str) -> str:
+        raise NotImplementedError
+
+    @staticmethod
+    def profiles_extractor(browser: Browser) -> dict[str, BrowserProfile]:
+        raise NotImplementedError
+
+
+class BlinkManager(Manager):
+    def __init__(self) -> None:
+        super().__init__()
+
+    @staticmethod
+    def incognito_flag() -> str:
+        return '--incognito'
+
+    @staticmethod
+    def open_flag(program: str, profile: str) -> str:
+        return f'{program} --profile-directory={profile!r} --no-default-browser-check'
+
+    @staticmethod
+    def profiles_extractor(browser: Browser) -> dict[str, BrowserProfile]:
+        path = Path(browser.path).expanduser()
+        return profiles_read_json(path)
+
+
+class GeckoManager(Manager):
+    def __init__(self) -> None:
+        super().__init__()
+
+    @staticmethod
+    def incognito_flag() -> str:
+        return '--private-window'
+
+    @staticmethod
+    def open_flag(program: str, profile: str) -> str:
+        return f'{program} -P {profile!r}'
+
+    @staticmethod
+    def profiles_extractor(browser: Browser) -> dict[str, BrowserProfile]:
+        path = Path(browser.path).expanduser()
+        return profiles_read_ini(path)
+
+
+@dataclass
+class Browser:
+    name: str
+    command: str
+    path: str
+    engine: str
+    enabled: bool
+
+    @property
+    def manager(self) -> type[Manager]:
+        return ENGINES_TYPES[self.engine]
+
+    @property
+    def incognito(self) -> str:
+        incognito_flag = self.manager.incognito_flag()
+        return f'{self.command} {incognito_flag}'
+
+    def get_profile(self, name: str) -> BrowserProfile:
+        return self.profiles[name]
+
+    @property
+    def profiles(self) -> dict[str, BrowserProfile]:
+        return self.manager.profiles_extractor(self)
+
+    def open(self, profile: BrowserProfile) -> int:
+        args = self.manager.open_flag(self.command, profile.key)
+        return execute_command(commands=args)
+
+    def to_json(self) -> str:
+        return json.dumps(
+            {
+                'name': self.name,
+                'command': self.command,
+                'path': self.path,
+                'engine': self.engine,
+                'enabled': self.enabled,
+            },
+            indent=2,
+        )
+
+
+brave = Browser(
+    name='Brave',
+    command='brave',
+    path='~/.config/BraveSoftware/Brave-Browser',
+    engine='blink',
+    enabled=True,
+)
+chromium = Browser(
+    name='Chromium',
+    command='chromium',
+    path='~/.config/chromium/Local State',
+    engine='blink',
+    enabled=True,
+)
+firefox = Browser(
+    name='Firefox',
+    command='firefox',
+    path='~/.mozilla/firefox/profiles.ini',
+    engine='gecko',
+    enabled=True,
+)
+google_chrome = Browser(
+    name='Chrome',
+    command='google-chrome',
+    path='~/.config/google-chrome',
+    engine='blink',
+    enabled=True,
+)
+librewolf = Browser(
+    name='LibreWolf',
+    command='librewolf',
+    path='~/.librewolf/profiles.ini',
+    engine='gecko',
+    enabled=True,
+)
+browser_register(brave)
+browser_register(chromium)
+browser_register(firefox)
+browser_register(google_chrome)
+browser_register(librewolf)
+
+
+ENGINES_TYPES: dict[str, type[Manager]] = {
+    'blink': BlinkManager,
+    'gecko': GeckoManager,
+}
+
+
+def format_title(title: str, items: list[str]) -> list[str]:
+    return [f"\n> {title}\n", *items]
+
+
+def format_bullet_line(label: str, value: str) -> str:
+    return f" - {label: <25} {value}"
+
+
+def setup_project() -> None:
+    if DEFAULT_APP_HOME.exists():
+        return
+    DEFAULT_APP_HOME.mkdir(exist_ok=True)
+
+
+def setup_args() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawTextHelpFormatter,
+        add_help=False,
+    )
+    parser.add_argument('browser', nargs="?")
+    parser.add_argument('-l', '--list', action='store_true')
+    parser.add_argument('-d', '--disable', help='Disable browser')
+    parser.add_argument('-e', '--enable', help='Enable browser')
+    parser.add_argument('-f', '--found', action='store_true')
+    parser.add_argument('-i', '--info')
+    parser.add_argument('-m', '--menu', default='dmenu')
+    parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('-V', '--version', action='store_true')
+    parser.add_argument('-h', '--help', action='store_true')
+    return parser
+
+
+def parse_args_and_exit(parser: argparse.ArgumentParser) -> None:
+    args = parser.parse_args()
+
+    if len(sys.argv) <= 1 or args.help:
+        print(APP_HELP)
+        sys.exit(0)
+
+    if args.list:
+        browser_load_from_json()
+        for item in browsers_status():
+            print(item)
+        print('')
+        sys.exit(0)
+
+    if args.version:
+        print(PROGRAM, __version__)
+        sys.exit(0)
+
+    if args.info:
+        browser = browser_get(args.detail)
+        __import__('pprint').pprint(browser)
+        sys.exit(0)
+
+    if args.enable:
+        browser_enable(args.enable)
+        sys.exit(0)
+
+    if args.disable:
+        browser_disable(args.disable)
+        sys.exit(0)
+
+
+def main() -> int:
+    parser = setup_args()
+    parse_args_and_exit(parser)
+    args = parser.parse_args()
+
+    browser_load_from_json()
+
+    menu = Menu.get(args.menu)
+
+    if args.verbose:
+        level = logging.DEBUG if args.verbose else logging.INFO
+        logging.basicConfig(level=level, handlers=[handler])
+
+    if args.browser:
+        browser = browser_get(args.browser)
+        profile = profile_select(menu, browser)
+        return browser.open(profile)
+    if args.found:
+        browsers = browser_all_found(BROWSERS)
+        browser = browser_select(menu, browsers)
+        profile = profile_select(menu, browser)
+        return browser.open(profile)
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
