@@ -13,6 +13,7 @@ import sys
 import textwrap
 from configparser import ConfigParser
 from dataclasses import dataclass
+from dataclasses import field
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
@@ -28,8 +29,12 @@ if TYPE_CHECKING:
 # - [X] Prioritize json files
 # - [X] Drop class UserProfile
 # - [X] Add color class
-# - [ ] Output to --json or --plain-text (maybe)
+# - [X] Output to --json
 
+
+# FIX:
+# - [X] In profiles_read_ini and profiles_read_json, return raw_data
+# - [X] In class Browser, create Profiles object
 
 # XDG
 DEFAULT_DATA_HOME = Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local/share'))
@@ -109,6 +114,7 @@ logger = logging.getLogger(__name__)
 class BrowserProfile(NamedTuple):
     name: str
     key: str
+    command: str
 
 
 def browser_get(name: str) -> Browser:
@@ -121,7 +127,9 @@ def browser_get(name: str) -> Browser:
 
 
 def browser_all_found(browsers: dict[str, Browser]) -> dict[str, Browser]:
-    return {b.name: b for b in browsers.values() if shutil.which(b.command)}
+    return {
+        b.name: b for b in browsers.values() if shutil.which(b.command) and b.enabled
+    }
 
 
 def browser_select(menu: MenuInterface, browsers: dict[str, Browser]) -> Browser:
@@ -198,7 +206,7 @@ def profile_select(menu: MenuInterface, browser: Browser) -> BrowserProfile:
     return browser.get_profile(selected)
 
 
-def profiles_read_json(filepath: Path) -> dict[str, BrowserProfile]:
+def profiles_read_json(filepath: Path) -> list[dict[str, str]]:
     """
     "profile": {
         "info_cache": {
@@ -209,7 +217,7 @@ def profiles_read_json(filepath: Path) -> dict[str, BrowserProfile]:
     }
     """
     assert_file(filepath)
-    profiles: dict[str, BrowserProfile] = {}
+    profiles: list[dict[str, str]] = []
     parent_container_name = 'profile'
     child_container_name = 'info_cache'
 
@@ -222,13 +230,13 @@ def profiles_read_json(filepath: Path) -> dict[str, BrowserProfile]:
         raise ValueError(err) from err
     for key, profile in child_container.items():
         name = profile.get('name')
-        profiles[name] = BrowserProfile(name=name, key=key)
+        profiles.append({"name": name, "key": key})
     return profiles
 
 
-def profiles_read_ini(filepath: Path) -> dict[str, BrowserProfile]:
+def profiles_read_ini(filepath: Path) -> list[dict[str, str]]:
     assert_file(filepath)
-    profiles: dict[str, BrowserProfile] = {}
+    profiles: list[dict[str, str]] = []
 
     logger.debug(f"filepath from 'read_ini_profiles'={filepath}")
     parser = load_ini_file(filepath)
@@ -236,11 +244,8 @@ def profiles_read_ini(filepath: Path) -> dict[str, BrowserProfile]:
     for section in parser.sections():
         if 'Profile' not in section:
             continue
-
         name = parser.get(section, 'Name')
-
-        profiles[name] = BrowserProfile(name=name, key=name)
-
+        profiles.append({"name": name, "key": name})
     return profiles
 
 
@@ -300,18 +305,22 @@ def execute_command(commands: str) -> int:
         raise e
 
 
+def create_profile_obj(data: dict[str, str]) -> BrowserProfile:
+    return BrowserProfile(name=data["name"], key=data["key"], command=data["command"])
+
+
 @dataclass
 class Manager:
     @staticmethod
-    def incognito_flag() -> str:
+    def flag_incognito(program: str) -> str:
         raise NotImplementedError
 
     @staticmethod
-    def open_flag(program: str, profile: str) -> str:
+    def flag_open(program: str, profile: str) -> str:
         raise NotImplementedError
 
     @staticmethod
-    def profiles_extractor(browser: Browser) -> dict[str, BrowserProfile]:
+    def data_extractor(browser: Browser) -> list[dict[str, str]]:
         raise NotImplementedError
 
 
@@ -320,15 +329,15 @@ class BlinkManager(Manager):
         super().__init__()
 
     @staticmethod
-    def incognito_flag() -> str:
-        return '--incognito'
+    def flag_incognito(program: str) -> str:
+        return f'{program} --incognito'
 
     @staticmethod
-    def open_flag(program: str, profile: str) -> str:
+    def flag_open(program: str, profile: str) -> str:
         return f'{program} --profile-directory={profile!r} --no-default-browser-check'
 
     @staticmethod
-    def profiles_extractor(browser: Browser) -> dict[str, BrowserProfile]:
+    def data_extractor(browser: Browser) -> list[dict[str, str]]:
         path = Path(browser.path).expanduser()
         return profiles_read_json(path)
 
@@ -338,15 +347,15 @@ class GeckoManager(Manager):
         super().__init__()
 
     @staticmethod
-    def incognito_flag() -> str:
-        return '--private-window'
+    def flag_incognito(program: str) -> str:
+        return f'{program} --private-window'
 
     @staticmethod
-    def open_flag(program: str, profile: str) -> str:
+    def flag_open(program: str, profile: str) -> str:
         return f'{program} -P {profile!r}'
 
     @staticmethod
-    def profiles_extractor(browser: Browser) -> dict[str, BrowserProfile]:
+    def data_extractor(browser: Browser) -> list[dict[str, str]]:
         path = Path(browser.path).expanduser()
         return profiles_read_ini(path)
 
@@ -358,26 +367,50 @@ class Browser:
     path: str
     engine: str
     enabled: bool
+    _profiles: dict[str, BrowserProfile] = field(default_factory=dict)
 
     @property
     def manager(self) -> type[Manager]:
         return ENGINES_TYPES[self.engine]
 
     @property
-    def incognito(self) -> str:
-        incognito_flag = self.manager.incognito_flag()
-        return f'{self.command} {incognito_flag}'
+    def incognito(self) -> BrowserProfile:
+        return BrowserProfile(
+            name="Igcognito",
+            key="Igcognito",
+            command=self.manager.flag_incognito(self.command),
+        )
 
     def get_profile(self, name: str) -> BrowserProfile:
         return self.profiles[name]
 
+    def add_profile(self, profile: BrowserProfile) -> None:
+        if profile.name not in self._profiles:
+            self._profiles[profile.name] = profile
+
+    def load_profiles(self) -> None:
+        incognito = self.incognito
+        profiles = {p.name: p for p in self.process_profiles()}
+        profiles[incognito.name] = incognito
+        self._profiles = profiles
+
+    def process_profiles(self) -> list[BrowserProfile]:
+        result: list[BrowserProfile] = []
+        data_extracted = self.manager.data_extractor(self)
+        for data in data_extracted:
+            data["command"] = self.manager.flag_open(self.command, data["name"])
+            profile = create_profile_obj(data)
+            result.append(profile)
+        return result
+
     @property
     def profiles(self) -> dict[str, BrowserProfile]:
-        return self.manager.profiles_extractor(self)
+        if not self._profiles:
+            self.load_profiles()
+        return self._profiles
 
     def open(self, profile: BrowserProfile) -> int:
-        args = self.manager.open_flag(self.command, profile.key)
-        return execute_command(commands=args)
+        return execute_command(commands=profile.command)
 
     def to_json(self) -> str:
         return json.dumps(
@@ -395,7 +428,7 @@ class Browser:
 brave = Browser(
     name='Brave',
     command='brave',
-    path='~/.config/BraveSoftware/Brave-Browser',
+    path='~/.config/BraveSoftware/Brave-Browser/Local State',
     engine='blink',
     enabled=True,
 )
@@ -416,7 +449,7 @@ firefox = Browser(
 google_chrome = Browser(
     name='Chrome',
     command='google-chrome',
-    path='~/.config/google-chrome',
+    path='~/.config/google-chrome/Local State',
     engine='blink',
     enabled=True,
 )
@@ -461,9 +494,9 @@ def setup_args() -> argparse.ArgumentParser:
     )
     parser.add_argument('browser', nargs="?")
     parser.add_argument('-l', '--list', action='store_true')
-    parser.add_argument('-d', '--disable', help='Disable browser')
-    parser.add_argument('-e', '--enable', help='Enable browser')
-    parser.add_argument('-f', '--found', action='store_true')
+    parser.add_argument('-d', '--disable')
+    parser.add_argument('-e', '--enable')
+    parser.add_argument('-f', '--found', action='store_true', default=True)
     parser.add_argument('-i', '--info')
     parser.add_argument('-m', '--menu', default='dmenu')
     parser.add_argument('-v', '--verbose', action='store_true')
@@ -472,10 +505,8 @@ def setup_args() -> argparse.ArgumentParser:
     return parser
 
 
-def parse_args_and_exit(parser: argparse.ArgumentParser) -> None:
-    args = parser.parse_args()
-
-    if len(sys.argv) <= 1 or args.help:
+def args_and_exit(args: argparse.Namespace) -> None:
+    if args.help:
         print(APP_HELP)
         sys.exit(0)
 
@@ -491,8 +522,8 @@ def parse_args_and_exit(parser: argparse.ArgumentParser) -> None:
         sys.exit(0)
 
     if args.info:
-        browser = browser_get(args.detail)
-        __import__('pprint').pprint(browser)
+        browser = browser_get(args.info)
+        print(browser.to_json())
         sys.exit(0)
 
     if args.enable:
@@ -506,10 +537,10 @@ def parse_args_and_exit(parser: argparse.ArgumentParser) -> None:
 
 def main() -> int:
     parser = setup_args()
-    parse_args_and_exit(parser)
     args = parser.parse_args()
-
     browser_load_from_json()
+
+    args_and_exit(args)
 
     menu = Menu.get(args.menu)
 
