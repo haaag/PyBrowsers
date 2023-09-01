@@ -45,7 +45,7 @@ BROWSERS: dict[str, Browser] = {}
 
 # App
 APP_NAME = 'PyBrowsers'
-__version__ = "0.0.5"
+__version__ = "0.0.6"
 PROGRAM = Path(__file__).name
 APP_HELP = textwrap.dedent(
     f"""    usage: pybrowsers [-l] [-d DISABLE] [-e ENABLE] [-f] [-i INFO] 
@@ -156,7 +156,6 @@ def browser_save_to_json(browser: Browser) -> None:
     with file.open(mode='w') as f:
         f.write(browser.to_json())
     return
-
 
 def browser_create(data: dict[str, Any]) -> Browser:
     return Browser(**data)
@@ -376,8 +375,8 @@ class Browser:
     @property
     def incognito(self) -> BrowserProfile:
         return BrowserProfile(
-            name="Igcognito",
-            key="Igcognito",
+            name="Incognito",
+            key="Incognito",
             command=self.manager.flag_incognito(self.command),
         )
 
@@ -398,7 +397,7 @@ class Browser:
         result: list[BrowserProfile] = []
         data_extracted = self.manager.data_extractor(self)
         for data in data_extracted:
-            data["command"] = self.manager.flag_open(self.command, data["name"])
+            data["command"] = self.manager.flag_open(self.command, data["key"])
             profile = create_profile_obj(data)
             result.append(profile)
         return result

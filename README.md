@@ -66,7 +66,9 @@ options:
 # Open menu with profiles list
 $ pybrowsers firefox
 # Disable browser (won't appear in the `found` arg)
-$ pybrowsers firefox --disable
+$ pybrowsers --disable firefox
+# or
+$ pybrowsers -d firefox
 ```
 
 ```bash
@@ -122,7 +124,7 @@ You can add a browser creating a `json` file in `$XDG_DATA_HOME/pybrowsers/` or
 ### ⚡️ Requirements
 
 - [dmenu](https://tools.suckless.org/dmenu/)
-- [rofi](https://github.com/davatorium/rofi)
+- [rofi](https://github.com/davatorium/rofi) _(Optional)_
 
 ### 🧰 TODO
 
