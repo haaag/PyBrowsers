@@ -45,7 +45,7 @@ BROWSERS: dict[str, Browser] = {}
 
 # App
 APP_NAME = 'PyBrowsers'
-__version__ = "0.0.6"
+__version__ = '0.0.6'
 PROGRAM = Path(__file__).name
 APP_HELP = textwrap.dedent(
     f"""    usage: pybrowsers [-l] [-d DISABLE] [-e ENABLE] [-f] [-i INFO] 
@@ -89,7 +89,7 @@ class C:
 
 
 # Logger Config
-FMT = "[{levelname:^7}] {name:<30}: {message} (line:{lineno})"
+FMT = '[{levelname:^7}] {name:<30}: {message} (line:{lineno})'
 FORMATS = {
     logging.DEBUG: C.color('GREY', FMT),
     logging.INFO: C.color('CYAN', FMT),
@@ -102,7 +102,7 @@ FORMATS = {
 class CustomFormatter(logging.Formatter):
     def format(self, record):  # type: ignore[no-untyped-def]
         log_fmt = FORMATS[record.levelno]
-        formatter = logging.Formatter(log_fmt, style="{")
+        formatter = logging.Formatter(log_fmt, style='{')
         return formatter.format(record)
 
 
@@ -229,7 +229,7 @@ def profiles_read_json(filepath: Path) -> list[dict[str, str]]:
         raise ValueError(err) from err
     for key, profile in child_container.items():
         name = profile.get('name')
-        profiles.append({"name": name, "key": key})
+        profiles.append({'name': name, 'key': key})
     return profiles
 
 
@@ -244,7 +244,7 @@ def profiles_read_ini(filepath: Path) -> list[dict[str, str]]:
         if 'Profile' not in section:
             continue
         name = parser.get(section, 'Name')
-        profiles.append({"name": name, "key": name})
+        profiles.append({'name': name, 'key': name})
     return profiles
 
 
@@ -305,7 +305,7 @@ def execute_command(commands: str) -> int:
 
 
 def create_profile_obj(data: dict[str, str]) -> BrowserProfile:
-    return BrowserProfile(name=data["name"], key=data["key"], command=data["command"])
+    return BrowserProfile(name=data['name'], key=data['key'], command=data['command'])
 
 
 @dataclass
@@ -375,8 +375,8 @@ class Browser:
     @property
     def incognito(self) -> BrowserProfile:
         return BrowserProfile(
-            name="Incognito",
-            key="Incognito",
+            name='Incognito',
+            key='Incognito',
             command=self.manager.flag_incognito(self.command),
         )
 
@@ -397,7 +397,7 @@ class Browser:
         result: list[BrowserProfile] = []
         data_extracted = self.manager.data_extractor(self)
         for data in data_extracted:
-            data["command"] = self.manager.flag_open(self.command, data["key"])
+            data['command'] = self.manager.flag_open(self.command, data['key'])
             profile = create_profile_obj(data)
             result.append(profile)
         return result
@@ -473,11 +473,11 @@ ENGINES_TYPES: dict[str, type[Manager]] = {
 
 
 def format_title(title: str, items: list[str]) -> list[str]:
-    return [f"\n> {title}\n", *items]
+    return [f'\n> {title}\n', *items]
 
 
 def format_bullet_line(label: str, value: str) -> str:
-    return f" - {label: <25} {value}"
+    return f' - {label: <25} {value}'
 
 
 def setup_project() -> None:
@@ -491,7 +491,7 @@ def setup_args() -> argparse.ArgumentParser:
         formatter_class=argparse.RawTextHelpFormatter,
         add_help=False,
     )
-    parser.add_argument('browser', nargs="?")
+    parser.add_argument('browser', nargs='?')
     parser.add_argument('-l', '--list', action='store_true')
     parser.add_argument('-d', '--disable')
     parser.add_argument('-e', '--enable')
