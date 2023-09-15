@@ -33,7 +33,7 @@ $ pipx install pybrowsers-profiles
 
 ```bash
 # Clone repository
-$ git clone "https://github.com/haaag/PyBrowsers-Profiles"
+$ git clone "https://github.com/haaag/PyBrowsers"
 $ cd PyBrowsers-Profiles
 
 # Create virtual environment & source
@@ -67,7 +67,7 @@ options:
 ```bash
 # Open menu with profiles list
 $ pybrowsers firefox
-# Disable browser (won't appear in the `found` arg)
+# Disable browser (won't appear in `found` arg)
 $ pybrowsers --disable firefox
 # or
 $ pybrowsers -d firefox
