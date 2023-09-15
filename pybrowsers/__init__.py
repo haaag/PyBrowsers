@@ -45,8 +45,7 @@ BROWSERS: dict[str, Browser] = {}
 
 # App
 APP_NAME = 'PyBrowsers'
-__version__ = '0.0.6'
-PROGRAM = Path(__file__).name
+__version__ = '0.0.7'
 APP_HELP = textwrap.dedent(
     f"""    usage: pybrowsers [-l] [-d DISABLE] [-e ENABLE] [-f] [-i INFO] 
                       [-m {{menu}}] [-v] [-V] [browser]
@@ -517,7 +516,7 @@ def args_and_exit(args: argparse.Namespace) -> None:
         sys.exit(0)
 
     if args.version:
-        print(PROGRAM, __version__)
+        print(APP_NAME, __version__)
         sys.exit(0)
 
     if args.info:
