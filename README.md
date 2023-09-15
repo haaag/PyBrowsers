@@ -38,6 +38,8 @@ $ cd PyBrowsers-Profiles
 
 # Create virtual environment & source
 $ python -m venv .venv
+# or
+$ python -m virtualenv .venv
 $ source .venv/bin/activate
 $ pip install .
 ```
@@ -89,7 +91,7 @@ $ pybrowsers -l
 
 #### Use the `-m, --menu` option to specify the launcher you want to use _(default: `dmenu`)_
 
-```bash
+```{bash}
 $ pybrowsers firefox --menu rofi
 ```
 
