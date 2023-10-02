@@ -50,7 +50,7 @@ APP_HELP = textwrap.dedent(
     f"""    usage: pybrowsers [-l] [-d DISABLE] [-e ENABLE] [-f] [-i INFO] 
                       [-m {{menu}}] [-v] [-V] [browser]
 
-    Simple script for manage browser's profiles
+    Simple yet powerful script for managing profiles in multiple web browsers.
 
     options:
         browser                     Browser name
