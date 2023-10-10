@@ -22,7 +22,7 @@ authors = [
 ]
 requires-python = ">=3.8"
 dependencies = [
-  "pyselector>=0.0.18",
+  "pyselector>=0.0.23",
 ]
 [project.urls]
 "Homepage" = "https://github.com/haaag/PyBrowsers-Profiles"

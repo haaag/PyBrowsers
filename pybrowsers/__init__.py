@@ -45,7 +45,7 @@ BROWSERS: dict[str, Browser] = {}
 
 # App
 APP_NAME = 'PyBrowsers'
-__version__ = '0.0.7'
+__version__ = '0.0.8'
 APP_HELP = textwrap.dedent(
     f"""    usage: pybrowsers [-l] [-d DISABLE] [-e ENABLE] [-f] [-i INFO] 
                       [-m {{menu}}] [-v] [-V] [browser]
@@ -117,8 +117,8 @@ class BrowserProfile(NamedTuple):
 
 
 def browser_get(name: str) -> Browser:
-    name = name.lower()
     try:
+        name = name.lower()
         browser = BROWSERS[name]
     except KeyError:
         raise ValueError(f'{name=} not found') from None
@@ -131,8 +131,10 @@ def browser_all_found(browsers: dict[str, Browser]) -> dict[str, Browser]:
     }
 
 
-def browser_select(menu: MenuInterface, browsers: dict[str, Browser]) -> Browser:
-    selected, _ = menu.prompt(items=browsers, prompt=f'{APP_NAME}> ')
+def browser_select(menu: MenuInterface, browsers: dict[str, Browser]) -> Browser | None:
+    selected, _ = menu.prompt(items=tuple(browsers), prompt=f'{APP_NAME}> ')
+    if selected is None:
+        return None
     return browser_get(selected)
 
 
@@ -155,6 +157,7 @@ def browser_save_to_json(browser: Browser) -> None:
     with file.open(mode='w') as f:
         f.write(browser.to_json())
     return
+
 
 def browser_create(data: dict[str, Any]) -> Browser:
     return Browser(**data)
@@ -199,8 +202,10 @@ def browser_load_from_json() -> None:
         browser_update(browser)
 
 
-def profile_select(menu: MenuInterface, browser: Browser) -> BrowserProfile:
-    selected, _ = menu.prompt(items=browser.profiles, prompt=f'{browser.name}> ')
+def profile_select(menu: MenuInterface, browser: Browser) -> BrowserProfile | None:
+    selected, _ = menu.prompt(items=tuple(browser.profiles), prompt=f'{browser.name}> ')
+    if selected is None:
+        return None
     return browser.get_profile(selected)
 
 
@@ -537,7 +542,6 @@ def main() -> int:
     parser = setup_args()
     args = parser.parse_args()
     browser_load_from_json()
-
     args_and_exit(args)
 
     menu = Menu.get(args.menu)
@@ -548,14 +552,19 @@ def main() -> int:
 
     if args.browser:
         browser = browser_get(args.browser)
-        profile = profile_select(menu, browser)
-        return browser.open(profile)
     if args.found:
         browsers = browser_all_found(BROWSERS)
-        browser = browser_select(menu, browsers)
-        profile = profile_select(menu, browser)
-        return browser.open(profile)
-    return 0
+    browser = browser_select(menu, browsers) # type: ignore[assignment]
+
+    if browser is None:
+        return 1
+
+    profile = profile_select(menu, browser)
+
+    if profile is None:
+        return 1
+
+    return browser.open(profile)
 
 
 if __name__ == '__main__':
