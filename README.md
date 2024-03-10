@@ -49,7 +49,8 @@ $ pip install .
 ```bash
 $ pybrowsers --help
 
-usage: pybrowsers [-l] [-d DISABLE] [-e ENABLE] [-f] [-m {{menu}}] [-v] [browser]
+usage: pybrowsers [-l] [-d DISABLE] [-e ENABLE] [-f] [-l] [-t]
+                [-m MENU] [-v] [-V] [browser]
 
 Simple script for manage browser's profiles
 
@@ -57,9 +58,10 @@ options:
     browser                     Browser name
     -e, --enable                Enable browser
     -d, --disable               Disable browser
-    -f, --found                 Browsers found
-    -l, --list                  Browser list and status
+    -l, --list                  Show browsers list and status
+    -t, --table                 Show browsers list with detail
     -m, --menu                  Select menu (default: dmenu)
+    -f, --found                 Browsers found
     -h, --help                  Show this help
     -v, --verbose               Verbose mode
 ```
@@ -77,12 +79,22 @@ $ pybrowsers -d firefox
 # Show status list
 $ pybrowsers -l
 
-> BROWSERS STATUS
- - Brave            (not found)
- - Chromium         (enabled)
- - Firefox          (disabled)
- - Chrome           (not found)
- - LibreWolf        (enabled)
+name      | engine | status
+----------+--------+-------------------
+Firefox   | gecko  | enable
+Chromium  | blink  | enable
+LibreWolf | gecko  | enable
+Brave     | blink  | not found
+
+# Show table list
+$ pybrowsers -t
+
+name      | command       | engine | path        | enabled | status
+----------+---------------+--------+-------------+---------+-------------------
+Firefox   | firefox       | gecko  | 'file_path' | yes     | enable
+Chromium  | chromium      | blink  | 'file_path' | yes     | enable
+LibreWolf | librewolf     | gecko  | 'file_path' | yes     | enable
+Brave     | brave         | blink  | 'file_path' | yes     | not found
 ```
 
 <br>
@@ -105,7 +117,7 @@ You can add a browser creating a `json` file in `$XDG_DATA_HOME/pybrowsers/` or
 
 #### Example
 
-```{json}
+```json
 {
   "name": "LibreWolf",
   "command": "librewolf",
@@ -127,6 +139,7 @@ You can add a browser creating a `json` file in `$XDG_DATA_HOME/pybrowsers/` or
 
 - [dmenu](https://tools.suckless.org/dmenu/)
 - [rofi](https://github.com/davatorium/rofi) _(Optional)_
+- [fzf](https://github.com/junegunn/fzf) _(Optional)_
 
 ### 🧰 TODO
 
