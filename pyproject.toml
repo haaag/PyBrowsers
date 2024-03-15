@@ -6,18 +6,30 @@ requires = ["hatchling"]
 name = "pybrowsers-profiles"
 dynamic = ["version"]
 description = "Simple script for manage browser's profiles."
-readme = "README.md"
+readme = { file = "README.md", content-type = "text/markdown" }
 keywords = ["dmenu", "firefox", "librewolf", "profiles", "rofi"]
-license = "MIT"
+license = { file = "LICENSE.txt" }
 authors = [{ name = "haaag", email = "git.haaag@gmail.com" }]
 requires-python = ">=3.8"
+classifiers = [
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.7",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
 dependencies = ["pyselector>=0.0.25"]
 [project.urls]
 "Homepage" = "https://github.com/haaag/PyBrowsers-Profiles"
 "Bug Tracker" = "https://github.com/haaag/PyBrowsers-Profiles/issues"
 
 [project.scripts]
-pybrowsers = "pybrowsers:main"
+pybrowsers = "pybrowsers:__main__.main"
+
+[tool.hatch.build.targets.sdist]
+exclude = ["assets", "dist"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["pybrowsers/"]
