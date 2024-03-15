@@ -15,9 +15,7 @@
 
 ### ⭐ About
 
-This Python script allows you to quickly launch `browser profiles` without having to manually navigate through the browser's settings.
-It reads the profile information from each browser's config directory and presents them as options for launch.
-This can save you time and improve your workflow if you frequently switch between multiple profiles.
+This Python script simplifies launching browser profiles by automatically retrieving profile information from each browser's config directory. It presents these profiles as launch options, saving time and enhancing workflow, especially for users who frequently switch between multiple profiles.
 
 ### 📦 Installation
 
@@ -37,83 +35,92 @@ $ git clone "https://github.com/haaag/PyBrowsers"
 $ cd PyBrowsers-Profiles
 
 # Create virtual environment & source
-$ python -m venv .venv
-# or
-$ python -m virtualenv .venv
-$ source .venv/bin/activate
+$ python -m venv .venv && source .venv/bin/activate
+
+# Install
 $ pip install .
 ```
+
+### ⚡️ Requirements
+
+- [dmenu](https://tools.suckless.org/dmenu/)
+- [rofi](https://github.com/davatorium/rofi) _(Optional)_
+- [fzf](https://github.com/junegunn/fzf) _(Optional)_
 
 ### 🚀 Usage
 
 ```bash
 $ pybrowsers --help
 
-usage: pybrowsers [-l] [-d DISABLE] [-e ENABLE] [-f] [-l] [-t]
-                [-m MENU] [-v] [-V] [browser]
+usage: pybrowsers [-l] [-d DISABLE] [-e ENABLE] [-f] [-t]
+                  [-m MENU] [-v] [-V] [browser] [-o URL]
 
 Simple script for manage browser's profiles
 
 options:
-    browser                     Browser name
-    -e, --enable                Enable browser
-    -d, --disable               Disable browser
-    -l, --list                  Show browsers list and status
-    -t, --table                 Show browsers list with detail
-    -m, --menu                  Select menu (default: dmenu)
-    -f, --found                 Browsers found
-    -h, --help                  Show this help
-    -v, --verbose               Verbose mode
+    browser             Browser name
+    -e, --enable        Enable browser
+    -d, --disable       Disable browser
+    -l, --list          Show browsers list and status
+    -t, --table         Show browsers list with detail
+    -m, --menu          Select menu (default: dmenu)
+    -f, --found         Browsers found
+    -o, --open          Open <URL> in browser
+    -V, --version       Show version
+    -h, --help          Show help
+    -v, --verbose       Verbose mode
+
+locations:
+    $HOME/.local/share/pybrowsers
 ```
+
+#### Use `no flags` to launch menu
+
+```bash
+# Open menu with browsers found
+$ pybrowsers
+```
+
+#### Use flag `browser` for browser's profile
 
 ```bash
 # Open menu with profiles list
 $ pybrowsers firefox
-# Disable browser (won't appear in `found` arg)
-$ pybrowsers --disable firefox
-# or
-$ pybrowsers -d firefox
 ```
+
+#### Use flag `-o, --open` for launching profile with url
+
+<div align="left">
+  <img align="center" src="assets/flag-open-with-browser.png">
+</div>
+
+#### Use flag `-m, --menu` option to specify the launcher you want to use _(default: `dmenu`)_
+
+<div align="left">
+  <img align="center" src="assets/flag-rofi-dark.gif">
+</div>
+
+#### Use flag `-l, --list` for status
+
+<div align="left">
+  <img align="center" src="assets/flag-list.png">
+</div>
+<br>
+
+#### Use flag `-d, --disable` or `-e, --enable`
 
 ```bash
-# Show status list
-$ pybrowsers -l
+# Disable browser (won't appear in `browsers found`)
+$ pybrowsers -d firefox
 
-name      | engine | status
-----------+--------+-------------------
-Firefox   | gecko  | enable
-Chromium  | blink  | enable
-LibreWolf | gecko  | enable
-Brave     | blink  | not found
-
-# Show table list
-$ pybrowsers -t
-
-name      | command       | engine | path        | enabled | status
-----------+---------------+--------+-------------+---------+-------------------
-Firefox   | firefox       | gecko  | 'file_path' | yes     | enable
-Chromium  | chromium      | blink  | 'file_path' | yes     | enable
-LibreWolf | librewolf     | gecko  | 'file_path' | yes     | enable
-Brave     | brave         | blink  | 'file_path' | yes     | not found
+# Enable browser
+$ pybrowsers -e firefox
 ```
-
-<br>
-<img align="center" width="684" height="27" src="https://github.com/haaag/profiles-browser-python/blob/main/.img/firefox-dmenu.png?raw=true">
-<br>
-
-#### Use the `-m, --menu` option to specify the launcher you want to use _(default: `dmenu`)_
-
-```{bash}
-$ pybrowsers firefox --menu rofi
-```
-
-<img align="center" width="314" height="423" src="https://github.com/haaag/profiles-browser-python/blob/main/.img/firefox-rofi.png?raw=true">
-<br>
 
 ### ➕ Add Browser
 
-You can add a browser creating a `json` file in `$XDG_DATA_HOME/pybrowsers/` or
-`~/.local/share/pybrowsers` _(Maybe in the future, create a interactive menu for add browser)_
+You can add a browser creating a `JSON` file in `$XDG_DATA_HOME/pybrowsers/` or
+`~/.local/share/pybrowsers`
 
 #### Example
 
@@ -135,16 +142,15 @@ You can add a browser creating a `json` file in `$XDG_DATA_HOME/pybrowsers/` or
 - Brave
 - Google Chrome
 
-### ⚡️ Requirements
+### 🧰 Dependencies
 
-- [dmenu](https://tools.suckless.org/dmenu/)
-- [rofi](https://github.com/davatorium/rofi) _(Optional)_
-- [fzf](https://github.com/junegunn/fzf) _(Optional)_
+- [PySelector](https://pypi.org/project/pyselector/)
 
 ### 🧰 TODO
 
-- [ ] Update screenshots
 - [ ] Create `interactive menu` for adding browser data
+- [x] Update screenshots
+- [x] Add `flag` for open URLs
 - [x] Please, use `pathlib.Path`
 - [x] BUG: Issue when the profile name contains spaces
 - [x] Add support for `json` files _(Prioritize)_
