@@ -19,6 +19,12 @@
 
 This Python script simplifies launching browser profiles by automatically retrieving profile information from each browser's config directory. It presents these profiles as launch options, saving time and enhancing workflow, especially for users who frequently switch between multiple profiles.
 
+### ⚡️ Requirements
+
+- [dmenu](https://tools.suckless.org/dmenu/)
+- [rofi](https://github.com/davatorium/rofi) _(Optional)_
+- [fzf](https://github.com/junegunn/fzf) _(Optional)_
+
 ### 📦 Installation
 
 #### Using `pipx` _(recommended)_
@@ -43,12 +49,6 @@ $ python -m venv .venv && source .venv/bin/activate
 $ pip install .
 ```
 
-### ⚡️ Requirements
-
-- [dmenu](https://tools.suckless.org/dmenu/)
-- [rofi](https://github.com/davatorium/rofi) _(Optional)_
-- [fzf](https://github.com/junegunn/fzf) _(Optional)_
-
 ### 🚀 Usage
 
 ```bash
@@ -63,11 +63,12 @@ options:
     browser             Browser name
     -e, --enable        Enable browser
     -d, --disable       Disable browser
+    -r, --running       Browser running and profile
+    -u, --url           Open <URL> in browser
     -l, --list          Show browsers list and status
     -t, --table         Show browsers list with detail
     -m, --menu          Select menu (default: dmenu)
     -f, --found         Browsers found
-    -o, --open          Open <URL> in browser
     -V, --version       Show version
     -h, --help          Show help
     -v, --verbose       Verbose mode
@@ -119,6 +120,15 @@ $ pybrowsers -d firefox
 $ pybrowsers -e firefox
 ```
 
+#### Use flag `-r, --running`
+
+This flag will show all running browsers and profiles, as long as it has been
+opened with `pybrowsers`
+
+```bash
+$ pybrowsers -r --url <URL>
+```
+
 ### ➕ Add Browser
 
 You can add a browser creating a `JSON` file in `$XDG_DATA_HOME/pybrowsers/` or
@@ -155,4 +165,4 @@ You can add a browser creating a `JSON` file in `$XDG_DATA_HOME/pybrowsers/` or
 - [x] Add `flag` for open URLs
 - [x] Please, use `pathlib.Path`
 - [x] BUG: Issue when the profile name contains spaces
-- [x] Add support for `json` files _(Prioritize)_
+- [x] Add support for `JSON` files _(prioritize)_

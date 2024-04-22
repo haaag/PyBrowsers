@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
-
 from __future__ import annotations
 
 import logging
 import os
-import sys
+import tempfile
 import textwrap
 from pathlib import Path
 
@@ -12,20 +10,13 @@ from pyselector import Menu
 
 logger = logging.getLogger(__name__)
 
-# TODO:
-# - [X] Add open-url option
 
-
-def log_error_and_exit(msg: str) -> None:
-    logger.error(f':{msg}:')
-    sys.exit(1)
-
-
-__version__ = '0.0.10'
+__version__ = '0.0.11'
 __appname__ = 'PyBrowsers'
-DOT = '\u00b7'
 ROOT = Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local/share'))
 HOME = ROOT / __appname__.lower()
+RUNNING = Path(tempfile.gettempdir()) / f'{__appname__.lower()}-running.json'
+DOT_UNICODE = '\u00b7'
 HELP = textwrap.dedent(
     f"""    usage: pybrowsers [-l] [-d DISABLE] [-e ENABLE] [-f] [-t]
                       [-m MENU] [-v] [-V] [browser] [-o URL]
@@ -36,11 +27,12 @@ HELP = textwrap.dedent(
         browser             Browser name
         -e, --enable        Enable browser
         -d, --disable       Disable browser
+        -r, --running       Browser running and profile
+        -u, --url           Open <URL> in browser
         -l, --list          Show browsers list and status
         -t, --table         Show browsers list with detail
         -m, --menu          Select menu (default: dmenu)
         -f, --found         Browsers found
-        -o, --open          Open <URL> in browser
         -V, --version       Show version
         -h, --help          Show help
         -v, --verbose       Verbose mode

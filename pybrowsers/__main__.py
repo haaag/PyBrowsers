@@ -23,18 +23,20 @@ from typing import Sequence
 from pyselector import Menu
 
 import pybrowsers
+from pybrowsers._exceptions import EXCEPTIONS
+from pybrowsers._exceptions import InvalidJSONError
+from pybrowsers._exceptions import NoBrowserFoundError
+from pybrowsers._exceptions import NoBrowserRunningError
+from pybrowsers._exceptions import NoURLError
 
 if TYPE_CHECKING:
     from pyselector.interfaces import MenuInterface
 
 logger = logging.getLogger(__name__)
 
-# TODO:
-# - [X] Add open-url option
-
 
 def log_error_and_exit(msg: str) -> None:
-    logger.error(f':{msg}:')
+    logger.error(f'{pybrowsers.__appname__.lower()}:{msg}:')
     sys.exit(1)
 
 
@@ -65,13 +67,13 @@ def validate_data_from_json(data: dict[str, Any]) -> None:
     for key in json_format_keys:
         if key in data:
             continue
-        log_error_and_exit(f'key {key!r} not found in {data!r}')
+        err_msg = f'key {key!r} not found in {data!r}'
+        raise InvalidJSONError(err_msg)
 
 
 def execute(commands: str) -> int:
     try:
         args = shlex.split(commands)
-
         completed_process = subprocess.run(
             args,
             stdout=subprocess.PIPE,
@@ -96,6 +98,19 @@ class Setup:
         logger.debug(f'creating directory {pybrowsers.HOME.name!r}')
         pybrowsers.HOME.mkdir(exist_ok=True)
 
+    def monitor(self) -> None:
+        if pybrowsers.RUNNING.exists():
+            logger.debug(f'file {pybrowsers.RUNNING.name!r} already exists')
+            return
+
+        logger.debug(f'creating file {pybrowsers.RUNNING.name!r}')
+        pybrowsers.RUNNING.touch(exist_ok=True)
+        Files.write(pybrowsers.RUNNING, data=json.dumps({}))
+
+    def files(self) -> None:
+        self.home()
+        self.monitor()
+
     def menu(self, name: str) -> MenuInterface:
         return Menu.get(name)
 
@@ -112,12 +127,13 @@ class Setup:
         parser.add_argument('-d', '--disable', action='store_true')
         parser.add_argument('-e', '--enable', action='store_true')
         parser.add_argument('-f', '--found', action='store_true', default=True)
-        parser.add_argument('-o', '--open', nargs='?')
+        parser.add_argument('-u', '--url', nargs='?')
         parser.add_argument('-t', '--table', action='store_true')
         parser.add_argument('-m', '--menu', default='dmenu')
         parser.add_argument('-v', '--verbose', action='store_true')
         parser.add_argument('-V', '--version', action='store_true')
         parser.add_argument('-h', '--help', action='store_true')
+        parser.add_argument('-r', '--running', action='store_true')
         parser.add_argument('--test', action='store_true')
 
         args = parser.parse_args()
@@ -127,35 +143,6 @@ class Setup:
         return args
 
 
-class Format:
-    @staticmethod
-    def title(title: str, items: list[str]) -> list[str]:
-        return [f'\n> {title}\n', *items]
-
-    @staticmethod
-    def bullet(label: str, value: str) -> str:
-        return f' {pybrowsers.DOT} {label: <20} {value}'
-
-    @staticmethod
-    def json(browser: Browser) -> str:
-        return json.dumps(
-            {
-                'name': browser.name,
-                'command': browser.command,
-                'path': browser.path,
-                'engine': browser.engine,
-                'enabled': browser.enabled,
-            },
-            indent=2,
-        )
-
-    @staticmethod
-    def table(header: tuple[str, ...], rows: tuple[str, ...]) -> Sequence[tuple[str, ...]]:
-        table = [header]
-        table.append(rows)
-        return table
-
-
 class Files:
     @staticmethod
     def read_json(filepath: Path) -> dict[str, Any]:
@@ -163,9 +150,9 @@ class Files:
             logger.debug(f'reading file {filepath.name!r}')
             with filepath.open(encoding='utf-8', mode='r') as file:
                 data = json.load(file)
-        except FileNotFoundError as _:
+        except FileNotFoundError:
             log_error_and_exit(f'JSON file {filepath.name!r} not found')
-        except JSONDecodeError as _:
+        except JSONDecodeError:
             log_error_and_exit(f'JSON file {filepath.name!r} is not valid JSON')
         return data
 
@@ -179,10 +166,20 @@ class Files:
         return parser
 
     @staticmethod
-    def save(path: Path, browser: Browser) -> None:
+    def write(path: Path, data: str) -> None:
+        with path.open(mode='w', encoding='utf-8') as f:
+            f.write(data)
+
+    @staticmethod
+    def read(path: Path) -> dict[str, dict[str, str]]:
+        with path.open(mode='r', encoding='utf-8') as f:
+            return json.load(f)
+
+    @staticmethod
+    def save_browser(path: Path, browser: Browser) -> None:
         file = path / f'{browser.name.lower()}.json'
         with file.open(mode='w') as f:
-            f.write(Format.json(browser))
+            f.write(browser.to_json())
         return
 
     @staticmethod
@@ -194,56 +191,82 @@ class Files:
             if not file.exists():
                 err_msg = f"file '{file!s}' not found"
                 raise FileNotFoundError(err_msg)
-        except (FileNotFoundError, IsADirectoryError) as _:
+        except (FileNotFoundError, IsADirectoryError):
             log_error_and_exit(err_msg)
 
 
 @dataclass
 class Flags:
-    @staticmethod
-    def incognito(program: str) -> str:
+    cmd: str
+
+    @property
+    def incognito(self) -> str:
         raise NotImplementedError
 
-    @staticmethod
-    def launch(program: str, profile: str) -> str:
+    def launch(self, profile: str) -> str:
+        raise NotImplementedError
+
+    @property
+    def new_tab(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def new_window(self) -> str:
         raise NotImplementedError
 
     @staticmethod
     def data_extractor(path: Path) -> list[dict[str, str]]:
+        # FIX: extract method
         raise NotImplementedError
 
 
 class BlinkFlags(Flags):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, cmd: str) -> None:
+        super().__init__(cmd)
 
-    @staticmethod
-    def incognito(program: str) -> str:
-        return f'{program} --incognito'
+    @property
+    def incognito(self) -> str:
+        return f'{self.cmd} --incognito'
 
-    @staticmethod
-    def launch(program: str, profile: str) -> str:
-        return f'{program} --profile-directory={profile!r} --no-default-browser-check'
+    def launch(self, profile: str) -> str:
+        return f'{self.cmd} --profile-directory={profile!r} --no-default-browser-check'
+
+    @property
+    def new_tab(self) -> str:
+        return self.cmd
+
+    @property
+    def new_window(self) -> str:
+        return f'{self.cmd} --new-window'
 
     @staticmethod
     def data_extractor(path: Path) -> list[dict[str, str]]:
+        # FIX: extract method
         return ProfileFileReader.blink(path)
 
 
 class GeckoFlags(Flags):
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, cmd: str) -> None:
+        super().__init__(cmd)
 
-    @staticmethod
-    def incognito(program: str) -> str:
-        return f'{program} --private-window'
+    @property
+    def incognito(self) -> str:
+        return f'{self.cmd} --private-window'
 
-    @staticmethod
-    def launch(program: str, profile: str) -> str:
-        return f'{program} -P {profile!r}'
+    def launch(self, profile: str) -> str:
+        return f'{self.cmd} -P {profile!r}'
+
+    @property
+    def new_tab(self) -> str:
+        return f'{self.cmd} -new-tab'
+
+    @property
+    def new_window(self) -> str:
+        return f'{self.cmd} --new-window'
 
     @staticmethod
     def data_extractor(path: Path) -> list[dict[str, str]]:
+        # FIX: extract method
         return ProfileFileReader.gecko(path)
 
 
@@ -259,7 +282,7 @@ class Profile(NamedTuple):
     command: str
 
     def launch(self) -> int:
-        return execute(self.command)
+        return Process.run(self.command)
 
     def open(self, url: str) -> int:
         return execute(f'{self.command} {url}')
@@ -324,23 +347,24 @@ class ProfileManager:
         self._profiles[profile.name] = profile
 
     def get(self, name: str) -> Profile:
+        # FIX: better way to handle incognito profile
+        if name.lower() == 'incognito':
+            return self.incognito()
         return self._profiles[name]
 
     def load(self) -> None:
-        data = self._browser.flags().data_extractor(self.file)
+        data = self._browser.flags.data_extractor(self.file)
         for profile in data:
-            profile['command'] = self._browser.flags().launch(
-                self._browser.command, profile['key']
-            )
+            profile['command'] = self._browser.flags.launch(profile['key'])
             self.add(self.new(profile))
         self.add(self.incognito())
 
     def incognito(self) -> Profile:
-        # FIX:
+        # FIX: fix what?
         return Profile(
             name='Incognito',
             key='Incognito',
-            command=self._browser.flags().incognito(self._browser.command),
+            command=self._browser.flags.incognito,
         )
 
     @staticmethod
@@ -367,12 +391,16 @@ class Browser:
     enabled: bool
     profiles: ProfileManager = field(default_factory=ProfileManager)
     default: bool = False
+    _flags: Flags | None = None
 
     def __post_init__(self) -> None:
         self.profiles._browser = self
 
-    def flags(self) -> type[Flags]:
-        return _TYPES[self.engine]
+    @property
+    def flags(self) -> Flags:
+        if not self._flags:
+            self._flags = _TYPES[self.engine](cmd=self.command)
+        return self._flags
 
     @property
     def status(self) -> str:
@@ -393,20 +421,98 @@ class Browser:
         return self
 
     def update(self) -> Self:
-        Files.save(pybrowsers.HOME, self)
+        Files.save_browser(pybrowsers.HOME, self)
         return self
+
+    def open(self, url: str) -> int:
+        return execute(f'{self.flags.new_tab} {url}')
+
+    def to_json(self) -> str:
+        return json.dumps(
+            {
+                'name': self.name,
+                'command': self.command,
+                'path': self.path,
+                'engine': self.engine,
+                'enabled': self.enabled,
+            },
+            indent=2,
+        )
+
+
+@dataclass
+class BrowserRunning:
+    file: Path
+
+    @property
+    def data(self) -> dict[str, Any]:
+        return Files.read(self.file)
+
+    def unlink(self) -> None:
+        self.file.unlink(missing_ok=True)
+
+    def register(self, browser: str, profile: str) -> None:
+        data = self.data
+        key = f'{browser}{pybrowsers.DOT_UNICODE}{profile}'
+        if key in data:
+            return
+        data[key] = {'name': browser, 'profile': profile}
+        logger.debug(f'browser {browser!r} profile {profile!r} registered')
+        Files.write(self.file, json.dumps(data, indent=2))
+
+    def unregister(self, browser: str, profile: str) -> None:
+        data = self.data
+        key = f'{browser}{pybrowsers.DOT_UNICODE}{profile}'
+        if key not in data:
+            return
+
+        logger.debug(f'browser {browser!r} profile {profile!r} unregistered')
+        del data[key]
+
+        if len(data) == 0:
+            self.unlink()
+            return
+
+        Files.write(self.file, json.dumps(data, indent=2))
+
+    def running(self, collection: BrowserCollection) -> BrowserCollection:
+        browsers = BrowserCollection()
+
+        for key, b in self.data.items():
+            browser = collection.get(b['name'])
+            browser.name = key
+            browsers.add(browser)
+        return browsers
+
+    def open(self, url: str, menu: Menu, collection: BrowserCollection) -> int:
+        if not url:
+            msg_err = '<URL> not specified'
+            raise NoURLError(msg_err)
+
+        running = self.running(collection)
+        if len(running.list()) == 0:
+            msg_err = 'no running browsers'
+            raise NoBrowserRunningError(msg_err)
+
+        browser = running.select(menu)
+        browser.profiles.load()
+        profile = browser.profiles.get(browser.name.split(pybrowsers.DOT_UNICODE)[1])
+        return profile.open(url)
 
 
 @dataclass
 class BrowserCollection:
     _collection: dict[str, Browser] = field(default_factory=dict)
 
+    def __len__(self) -> int:
+        return len(self._collection)
+
     def get(self, name: str) -> Browser:
         name = name.lower()
         logger.debug(f'browser {name!r} requested')
         try:
             browser = self._collection[name]
-        except KeyError as _:
+        except KeyError:
             log_error_and_exit(f'browser {name!r} not found')
         return browser
 
@@ -417,7 +523,6 @@ class BrowserCollection:
     @staticmethod
     def new(data: dict[str, Any]) -> Browser:
         logger.debug(f'browser {data!r} added')
-        validate_data_from_json(data)
         return Browser(**data)
 
     def found(self) -> dict[str, Browser]:
@@ -429,19 +534,17 @@ class BrowserCollection:
 
     def select(self, menu: MenuInterface, browsers: dict[str, Browser] | None = None) -> Browser:
         if browsers is None:
-            browsers = self.found()
+            browsers = self._collection
 
         if not browsers:
-            browsers = {
-                'NothingFound': Browser(
-                    name='Not found', command='notfound', path='', engine='', enabled=True
-                )
-            }
+            err_msg = 'no browser found'
+            raise NoBrowserFoundError(err_msg)
 
         selected, keycode = menu.prompt(
             items=tuple(browsers), prompt=f'{pybrowsers.__appname__}> '
         )
 
+        # FIX: do not exit program
         if keycode == 1 or selected is None:
             sys.exit(1)
 
@@ -449,9 +552,22 @@ class BrowserCollection:
 
     def load_json_files(self, home: Path) -> None:
         for file in home.glob('*.json'):
-            data = Files.read_json(file)
+            try:
+                data = Files.read_json(file)
+                validate_data_from_json(data)
+            except InvalidJSONError as err:
+                err_msg = f'file={file.name} is not a valid JSON.\n{err}'
+                raise InvalidJSONError(err_msg) from err
             browser = self.new(data)
             self.add(browser)
+
+    def load_defaults(self) -> Self:
+        self.add(firefox)
+        self.add(chromium)
+        self.add(librewolf)
+        self.add(brave)
+        self.add(google_chrome)
+        return self
 
     def status(self) -> None:
         header = ('name', 'command', 'engine', 'status')
@@ -463,7 +579,11 @@ class BrowserCollection:
     def table(self) -> None:
         header = ('name', 'command', 'engine', 'path', 'enabled', 'status')
         table = [header]
-        for browser in self.list():
+        browsers = self.list()
+        if len(browsers) == 0:
+            return
+
+        for browser in browsers:
             enabled = 'yes' if browser.enabled else 'no'
             row = (
                 browser.name,
@@ -515,16 +635,22 @@ google_chrome = Browser(
 )
 
 
-def defaults(browsers: BrowserCollection) -> BrowserCollection:
-    browsers.add(firefox)
-    browsers.add(chromium)
-    browsers.add(librewolf)
-    browsers.add(brave)
-    browsers.add(google_chrome)
-    return browsers
+class Process:
+    @staticmethod
+    def run(commands: str) -> int:
+        logger.debug(f'executing from run: {commands!r}')
+        process = subprocess.run(
+            shlex.split(commands),
+            stderr=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+        )
+        logger.debug(f'execute::{process!r}')
+        return process.returncode
 
 
-def parse_and_exit(args: argparse.Namespace, browsers: BrowserCollection) -> None:
+def parse_and_exit(
+    args: argparse.Namespace, browsers: BrowserCollection, menu: MenuInterface
+) -> None:
     if args.test:
         logger.debug('testing mode')
         sys.exit(0)
@@ -562,24 +688,40 @@ def parse_and_exit(args: argparse.Namespace, browsers: BrowserCollection) -> Non
 
 def main() -> int:
     setup = Setup()
-    setup.home()
+    setup.files()
+
     args = setup.args()
-
-    browsers = BrowserCollection()
-    browsers = defaults(browsers)
-    browsers.load_json_files(pybrowsers.HOME)
-
-    parse_and_exit(args, browsers)
-
     menu = setup.menu(args.menu)
 
-    browser = browsers.get(args.browser) if args.browser else browsers.select(menu)
-    browser.profiles.load()
+    try:
+        browsers = BrowserCollection()
+        browsers.load_defaults().load_json_files(pybrowsers.HOME)
+        running = BrowserRunning(pybrowsers.RUNNING)
+        parse_and_exit(args, browsers, menu)
 
-    if args.open:
-        return browser.profiles.select(menu).open(args.open)
+        if args.running:
+            return running.open(args.url, menu, browsers)
 
-    return browser.profiles.select(menu).launch()
+        browser = (
+            browsers.get(args.browser) if args.browser else browsers.select(menu, browsers.found())
+        )
+        browser.profiles.load()
+
+        profile = browser.profiles.select(menu)
+        running.register(browser.name, profile.name)
+
+        if args.url:
+            retcode = profile.open(args.url)
+            running.unregister(browser.name, profile.name)
+            return retcode
+
+        retcode = profile.launch()
+        running.unregister(browser.name, profile.name)
+
+    except EXCEPTIONS as err:
+        menu.prompt(items=[err], prompt='PyBrowserErr>', lines=5)
+        log_error_and_exit(str(err))
+    return retcode
 
 
 if __name__ == '__main__':
