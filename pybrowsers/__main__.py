@@ -184,15 +184,10 @@ class Files:
 
     @staticmethod
     def assert_exists(file: Path) -> None:
-        try:
-            if file.is_dir():
-                err_msg = f"file '{file!s}' is not a file."
-                raise IsADirectoryError(err_msg)
-            if not file.exists():
-                err_msg = f"file '{file!s}' not found"
-                raise FileNotFoundError(err_msg)
-        except (FileNotFoundError, IsADirectoryError):
-            log_error_and_exit(err_msg)
+        if not file.exists():
+            log_error_and_exit(f"file '{file!s}' is not a file.")
+        if file.is_dir():
+            log_error_and_exit(f"file '{file!s}' not found")
 
 
 @dataclass
@@ -360,7 +355,6 @@ class ProfileManager:
         self.add(self.incognito())
 
     def incognito(self) -> Profile:
-        # FIX: fix what?
         return Profile(
             name='Incognito',
             key='Incognito',
@@ -449,7 +443,7 @@ class BrowserRunning:
         return Files.read(self.file)
 
     def unlink(self) -> None:
-        self.file.unlink(missing_ok=True)
+        self.file.unlink()
 
     def register(self, browser: str, profile: str) -> None:
         data = self.data
@@ -719,7 +713,7 @@ def main() -> int:
         running.unregister(browser.name, profile.name)
 
     except EXCEPTIONS as err:
-        menu.prompt(items=[err], prompt='PyBrowserErr>', lines=5)
+        menu.prompt(items=[err], prompt='PyBrowserErr>')
         log_error_and_exit(str(err))
     return retcode
 

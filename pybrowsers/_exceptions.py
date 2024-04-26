@@ -1,20 +1,16 @@
 from __future__ import annotations
 
 
-class InvalidJSONError(Exception):
-    pass
+class InvalidJSONError(Exception): ...
 
 
-class NoURLError(Exception):
-    pass
+class NoURLError(Exception): ...
 
 
-class NoBrowserRunningError(Exception):
-    pass
+class NoBrowserRunningError(Exception): ...
 
 
-class NoBrowserFoundError(Exception):
-    pass
+class NoBrowserFoundError(Exception): ...
 
 
 EXCEPTIONS = (
