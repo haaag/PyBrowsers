@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-__version__ = '0.0.12'
+__version__ = '0.0.13'
 __appname__ = 'PyBrowsers'
 
 ROOT = Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local/share'))
