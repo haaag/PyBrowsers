@@ -5,10 +5,12 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import shlex
 import shutil
 import subprocess
 import sys
+import textwrap
 from configparser import ConfigParser
 from dataclasses import dataclass
 from dataclasses import field
@@ -22,22 +24,80 @@ from typing import Sequence
 
 from pyselector import Menu
 
-import pybrowsers
-from pybrowsers._exceptions import EXCEPTIONS
-from pybrowsers._exceptions import InvalidJSONError
-from pybrowsers._exceptions import NoBrowserFoundError
-from pybrowsers._exceptions import NoBrowserRunningError
-from pybrowsers._exceptions import NoURLError
-
 if TYPE_CHECKING:
     from pyselector.interfaces import MenuInterface
 
 logger = logging.getLogger(__name__)
 
+__version__ = '0.0.12'
+__appname__ = 'PyBrowsers'
+
+ROOT = Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local/share'))
+HOME = ROOT / __appname__.lower()
+HELP = textwrap.dedent(
+    f"""    usage: pybrowsers [-l] [-d DISABLE] [-e ENABLE] [-f] [-t]
+                      [-m MENU] [-v] [-V] [browser] [-o URL]
+
+    Simple yet powerful script for managing profiles in multiple web browsers.
+
+    options:
+        browser             Browser name
+        -e, --enable        Enable browser
+        -d, --disable       Disable browser
+        -u, --url           Open <URL> in browser
+        -l, --list          Show browsers list and status
+        -t, --table         Show browsers list with detail
+        -m, --menu          Select menu (default: dmenu)
+        -f, --found         Browsers found
+        -V, --version       Show version
+        -h, --help          Show help
+        -v, --verbose       Verbose mode
+
+    supported menus:
+        {list(Menu.registered().keys())}
+
+    locations:
+        {ROOT / 'pybrowsers'}
+    """
+)
+
+# colors
+CYAN = '\033[36m{}\033[0m'
+ORANGE = '\033[33m{}\033[0m'
+RED = '\033[31m{}\033[0m'
+DOT_UNICODE = '\u00b7'
+
+
+class InvalidJSONError(Exception): ...
+
+
+class NoURLError(Exception): ...
+
+
+class NoBrowserFoundError(Exception): ...
+
+
+EXCEPTIONS = (
+    InvalidJSONError,
+    NoURLError,
+    NoBrowserFoundError,
+)
+
 
 def log_error_and_exit(msg: str) -> None:
-    logger.error(f'{pybrowsers.__appname__.lower()}:{msg}:')
+    logger.error(f'{__appname__.lower()}:{msg}:')
     sys.exit(1)
+
+
+def shorten_path_str(filepath: str, length: int, parts: int) -> str:
+    """
+    Split the path into separate parts, select the last 'length'
+    elements and join them again
+    """
+    if len(filepath) < length:
+        return str(filepath)
+    short_path = '~/...' / Path(*Path(filepath).parts[-parts:])
+    return str(short_path)
 
 
 def print_table(rows: Sequence[tuple[str, ...]]) -> None:
@@ -71,45 +131,17 @@ def validate_data_from_json(data: dict[str, Any]) -> None:
         raise InvalidJSONError(err_msg)
 
 
-def execute(commands: str) -> int:
-    try:
-        args = shlex.split(commands)
-        completed_process = subprocess.run(
-            args,
-            stdout=subprocess.PIPE,
-            stdin=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            shell=False,
-        )
-        logger.debug(f'execute::{completed_process!r}')
-        return completed_process.returncode
-    except subprocess.SubprocessError as e:
-        logging.exception(e)
-        raise e
-
-
 class Setup:
     def home(self) -> None:
-        if pybrowsers.HOME.exists():
-            logger.debug(f'directory {pybrowsers.HOME.name!r} already exists')
+        if HOME.exists():
+            logger.debug(f'directory {HOME.name!r} already exists')
             return
 
-        logger.debug(f'creating directory {pybrowsers.HOME.name!r}')
-        pybrowsers.HOME.mkdir(exist_ok=True)
-
-    def monitor(self) -> None:
-        if pybrowsers.RUNNING.exists():
-            logger.debug(f'file {pybrowsers.RUNNING.name!r} already exists')
-            return
-
-        logger.debug(f'creating file {pybrowsers.RUNNING.name!r}')
-        pybrowsers.RUNNING.touch(exist_ok=True)
-        Files.write(pybrowsers.RUNNING, data=json.dumps({}))
+        logger.debug(f'creating directory {HOME.name!r}')
+        HOME.mkdir(exist_ok=True)
 
     def files(self) -> None:
         self.home()
-        self.monitor()
 
     def menu(self, name: str) -> MenuInterface:
         return Menu.get(name)
@@ -133,7 +165,6 @@ class Setup:
         parser.add_argument('-v', '--verbose', action='store_true')
         parser.add_argument('-V', '--version', action='store_true')
         parser.add_argument('-h', '--help', action='store_true')
-        parser.add_argument('-r', '--running', action='store_true')
         parser.add_argument('--test', action='store_true')
 
         args = parser.parse_args()
@@ -274,13 +305,16 @@ _TYPES: dict[str, type[Flags]] = {
 class Profile(NamedTuple):
     name: str
     key: str
-    command: str
+    cmd: str
 
     def launch(self) -> int:
-        return Process.run(self.command)
+        return Process.run(self.cmd)
 
     def open(self, url: str) -> int:
-        return execute(f'{self.command} {url}')
+        return Process.run(f'{self.cmd} {url}')
+
+    def new_tab(self, url: str) -> int:
+        return Process.run(f'{self.cmd} -new-tab {url}')
 
 
 class ProfileFileReader:
@@ -358,12 +392,12 @@ class ProfileManager:
         return Profile(
             name='Incognito',
             key='Incognito',
-            command=self._browser.flags.incognito,
+            cmd=self._browser.flags.incognito,
         )
 
     @staticmethod
     def new(data: dict[str, str]) -> Profile:
-        return Profile(name=data['name'], key=data['key'], command=data['command'])
+        return Profile(name=data['name'], key=data['key'], cmd=data['command'])
 
     def select(self, menu: MenuInterface) -> Profile:
         selected, keycode = menu.prompt(
@@ -399,12 +433,8 @@ class Browser:
     @property
     def status(self) -> str:
         if shutil.which(self.command) is None:
-            return pybrowsers.RED.format('not found')
-        return (
-            pybrowsers.CYAN.format('enable')
-            if self.enabled
-            else pybrowsers.ORANGE.format('disable')
-        )
+            return RED.format('not found')
+        return CYAN.format('enable') if self.enabled else ORANGE.format('disable')
 
     def disable(self) -> Self:
         self.enabled = False
@@ -415,11 +445,11 @@ class Browser:
         return self
 
     def update(self) -> Self:
-        Files.save_browser(pybrowsers.HOME, self)
+        Files.save_browser(HOME, self)
         return self
 
     def open(self, url: str) -> int:
-        return execute(f'{self.flags.new_tab} {url}')
+        return Process.run(f'{self.flags.new_tab} {url}')
 
     def to_json(self) -> str:
         return json.dumps(
@@ -432,66 +462,6 @@ class Browser:
             },
             indent=2,
         )
-
-
-@dataclass
-class BrowserRunning:
-    file: Path
-
-    @property
-    def data(self) -> dict[str, Any]:
-        return Files.read(self.file)
-
-    def unlink(self) -> None:
-        self.file.unlink()
-
-    def register(self, browser: str, profile: str) -> None:
-        data = self.data
-        key = f'{browser}{pybrowsers.DOT_UNICODE}{profile}'
-        if key in data:
-            return
-        data[key] = {'name': browser, 'profile': profile}
-        logger.debug(f'browser {browser!r} profile {profile!r} registered')
-        Files.write(self.file, json.dumps(data, indent=2))
-
-    def unregister(self, browser: str, profile: str) -> None:
-        data = self.data
-        key = f'{browser}{pybrowsers.DOT_UNICODE}{profile}'
-        if key not in data:
-            return
-
-        logger.debug(f'browser {browser!r} profile {profile!r} unregistered')
-        del data[key]
-
-        if len(data) == 0:
-            self.unlink()
-            return
-
-        Files.write(self.file, json.dumps(data, indent=2))
-
-    def running(self, collection: BrowserCollection) -> BrowserCollection:
-        browsers = BrowserCollection()
-
-        for key, b in self.data.items():
-            browser = collection.get(b['name'])
-            browser.name = key
-            browsers.add(browser)
-        return browsers
-
-    def open(self, url: str, menu: Menu, collection: BrowserCollection) -> int:
-        if not url:
-            msg_err = '<URL> not specified'
-            raise NoURLError(msg_err)
-
-        running = self.running(collection)
-        if len(running.list()) == 0:
-            msg_err = 'no running browsers'
-            raise NoBrowserRunningError(msg_err)
-
-        browser = running.select(menu)
-        browser.profiles.load()
-        profile = browser.profiles.get(browser.name.split(pybrowsers.DOT_UNICODE)[1])
-        return profile.open(url)
 
 
 @dataclass
@@ -535,7 +505,8 @@ class BrowserCollection:
             raise NoBrowserFoundError(err_msg)
 
         selected, keycode = menu.prompt(
-            items=tuple(browsers), prompt=f'{pybrowsers.__appname__}> '
+            items=tuple(browsers),
+            prompt=f'{__appname__}> ',
         )
 
         # FIX: do not exit program
@@ -583,7 +554,7 @@ class BrowserCollection:
                 browser.name,
                 browser.command,
                 browser.engine,
-                f'{browser.path!r}',
+                shorten_path_str(browser.path, length=80, parts=4),
                 enabled,
                 browser.status,
             )
@@ -643,18 +614,20 @@ class Process:
 
 
 def parse_and_exit(
-    args: argparse.Namespace, browsers: BrowserCollection, menu: MenuInterface
+    args: argparse.Namespace,
+    browsers: BrowserCollection,
+    menu: MenuInterface,
 ) -> None:
     if args.test:
         logger.debug('testing mode')
         sys.exit(0)
 
     if args.help:
-        print(pybrowsers.HELP)
+        print(HELP)
         sys.exit(0)
 
     if args.version:
-        print(pybrowsers.__appname__, pybrowsers.__version__)
+        print(__appname__, __version__)
         sys.exit(0)
 
     if args.list:
@@ -670,6 +643,7 @@ def parse_and_exit(
             log_error_and_exit('enable: browser not specified')
         browser = browsers.get(args.browser)
         browser.enable().update()
+        logger.debug(f'browser {browser.name!r} enabled')
         sys.exit(0)
 
     if args.disable:
@@ -677,6 +651,7 @@ def parse_and_exit(
             log_error_and_exit('disable: browser not specified')
         browser = browsers.get(args.browser)
         browser.disable().update()
+        logger.debug(f'browser {browser.name!r} disabled')
         sys.exit(0)
 
 
@@ -689,12 +664,8 @@ def main() -> int:
 
     try:
         browsers = BrowserCollection()
-        browsers.load_defaults().load_json_files(pybrowsers.HOME)
-        running = BrowserRunning(pybrowsers.RUNNING)
+        browsers.load_defaults().load_json_files(HOME)
         parse_and_exit(args, browsers, menu)
-
-        if args.running:
-            return running.open(args.url, menu, browsers)
 
         browser = (
             browsers.get(args.browser) if args.browser else browsers.select(menu, browsers.found())
@@ -702,20 +673,13 @@ def main() -> int:
         browser.profiles.load()
 
         profile = browser.profiles.select(menu)
-        running.register(browser.name, profile.name)
-
         if args.url:
-            retcode = profile.open(args.url)
-            running.unregister(browser.name, profile.name)
-            return retcode
-
-        retcode = profile.launch()
-        running.unregister(browser.name, profile.name)
-
+            return profile.open(args.url)
+        return profile.launch()
     except EXCEPTIONS as err:
         menu.prompt(items=[err], prompt='PyBrowserErr>')
         log_error_and_exit(str(err))
-    return retcode
+    return 1
 
 
 if __name__ == '__main__':

@@ -45,8 +45,11 @@ $ cd PyBrowsers-Profiles
 # Create virtual environment & source
 $ python -m venv .venv && source .venv/bin/activate
 
-# Install
-$ pip install .
+# Install deps
+$ (.venv ) pip install -r requirements.txt
+
+# Install script in local environment
+$ (.venv ) pip install .
 ```
 
 ### 🚀 Usage
@@ -63,7 +66,6 @@ options:
     browser             Browser name
     -e, --enable        Enable browser
     -d, --disable       Disable browser
-    -r, --running       Browser running and profile
     -u, --url           Open <URL> in browser
     -l, --list          Show browsers list and status
     -t, --table         Show browsers list with detail
@@ -120,14 +122,12 @@ $ pybrowsers -d firefox
 $ pybrowsers -e firefox
 ```
 
-#### Use flag `-r, --running`
+#### ~~Use flag `-r, --running`~~
 
-This flag will show all running browsers and profiles, as long as it has been
-opened with `pybrowsers`
+~~<p><em>Supported on: 🦊</em></p>~~
 
-```bash
-$ pybrowsers -r --url <URL>
-```
+~~This flag will show all running browsers and profiles, as long as it has been
+opened with `pybrowsers`.~~
 
 ### ➕ Add Browser
 
@@ -148,7 +148,7 @@ You can add a browser creating a `JSON` file in `$XDG_DATA_HOME/pybrowsers/` or
 
 ### 🌐 Browsers
 
-- [Firefox](https://www.mozilla.org/firefox/download/thanks/)
+- 🦊 [Firefox](https://www.mozilla.org/firefox/download/thanks/)
 - [LibreWolf](https://librewolf.net/)
 - [Chromium](https://www.chromium.org/getting-involved/download-chromium/)
 - Brave

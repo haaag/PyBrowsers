@@ -35,7 +35,7 @@ exclude = ["assets", "dist"]
 packages = ["pybrowsers/"]
 
 [tool.hatch.version]
-path = "pybrowsers/__init__.py"
+path = "pybrowsers/__main__.py"
 
 [tool.mypy]
 show_error_codes = true
