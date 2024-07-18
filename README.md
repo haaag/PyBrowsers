@@ -39,8 +39,8 @@ $ pipx install pybrowsers-profiles
 
 ```bash
 # Clone repository
-$ git clone "https://github.com/haaag/PyBrowsers"
-$ cd PyBrowsers-Profiles
+$ git clone "https://github.com/haaag/pybrowsers"
+$ cd pybrowsers
 
 # Create virtual environment & source
 $ python -m venv .venv && source .venv/bin/activate
